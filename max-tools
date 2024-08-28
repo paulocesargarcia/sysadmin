@@ -15,14 +15,31 @@ GITHUB_REPO_URL="https://github.com/seu_usuario/seu_repositorio.git"
 show_help() {
     echo "max-tools - Ferramenta para analise do servidor."
     echo "Uso: $0 [opções]"
-    echo "  --help                Exibe ajuda da ferramenta"
-    echo "  --top                 Exibe o uso recursos do servidor"
-    echo "  --ip_abuse [ip]       Exibe os usuários com uso excessivo para de um IP"
-    echo "  --ip_block [ip]       Bloquear o IP especificado"
-    echo "  --update              Atualizar o script"
+    echo "  --help                   Exibe ajuda da ferramenta"
+    echo "  --top                    Exibe o uso recursos do servidor"
+    echo "  --ip_abuse [ip]          Exibe os usuários com uso excessivo para de um IP"
+    echo "  --ip_block [ip]          Bloquear o IP especificado"
+    echo "  --list_blocked_ips [ip]  Lista IPs bloqueados, opcionalmente filtra por [ip]"
+    echo "  --update                 Atualizar o script"
 }
 
-# Verifica dependências
+/**
+ * Lista IPs bloqueados no firewall-cmd.
+ * Se um IP for fornecido, filtra o IP específico; caso contrário, lista todos os IPs bloqueados.
+ * @param [ip] - (Opcional) IP a ser filtrado
+ * @example
+ * $0 --list_blocked_ips
+ * $0 --list_blocked_ips 192.168.0.1
+ */
+tool_list_blocked_ips() {
+    tool_check_deps "firewall-cmd"
+    if [ -z "$1" ]; then
+        firewall-cmd --list-all | grep "rule family='ipv4'" | grep "reject"
+    else
+        firewall-cmd --list-all | grep "rule family='ipv4' source address='$1' reject"
+    fi
+}
+
 /**
  * Verifica se as dependências necessárias estão instaladas.
  * @param dependencies - Lista de dependências a serem verificadas
@@ -34,7 +51,6 @@ tool_check_deps() {
     done
 }
 
-# Testa uso de recursos do servidor
 /**
  * Exibe o uso de recursos do servidor, listando processos que utilizam mais CPU e memória.
  * @example
@@ -46,7 +62,6 @@ tool_top_command() {
     ps -eo user,pid,%cpu,%mem,comm --sort=-%cpu,-%mem | head
 }
 
-# Verifica o usuário para o IP informado
 /**
  * Exibe os usuários com uso excessivo para de um IP específico.
  * @param ip - Endereço IP a ser verificado
@@ -59,7 +74,6 @@ tool_ip_abuse() {
     ss -tp | grep "$ip" | awk '{print $6}' | sed 's/.*pid=\([0-9]*\),.*/\1/' | xargs -r -I{} ps -p {} -o user=
 }
 
-# Bloqueia um IP usando firewall-cmd
 /**
  * Bloqueia o IP especificado utilizando o firewall-cmd.
  * @param ip - Endereço IP a ser bloqueado
@@ -71,7 +85,6 @@ tool_ip_block() {
     firewall-cmd --add-rich-rule="rule family='ipv4' source address='$1' reject"
 }
 
-# Atualiza o script
 /**
  * Atualiza o script para a última versão do repositório GitHub.
  * @example
@@ -83,5 +96,4 @@ tool_update() {
     git pull "$GITHUB_REPO_URL" main && chmod 700 "$SCRIPT_PATH" && chown root:root "$SCRIPT_PATH" && echo "Atualizado." || echo "Erro na atualização."
 }
 
-# Exibe o help se nenhum parâmetro for passado
 [ $# -eq 0 ] && show_help && exit 0
