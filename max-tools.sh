@@ -60,6 +60,8 @@ tool_install() {
     echo "Instalacao completa. O script esta disponivel em $INSTALL_DIR/$SCRIPT_NAME."
 }
 
+# Exibe o help se nenhum parâmetro for passado
+[ $# -eq 0 ] && show_help && exit 0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in

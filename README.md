@@ -24,3 +24,4 @@ show_help() {
     echo "  --list_blocked_ips [ip]  Lista IPs bloqueados, opcionalmente filtra por [ip]"
     echo "  --install                Instalar a versão mais recente"
 }
+
