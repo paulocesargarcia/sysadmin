@@ -47,15 +47,19 @@ tool_list_blocked_ips() {
 }
 
 tool_install() {
-    tool_check_deps "git"
-    SCRIPT_PATH=$(realpath "$0")
-    SCRIPT_DIR=$(dirname "$SCRIPT_PATH")
-    cd "$SCRIPT_DIR"
-    git pull "$GITHUB_REPO_URL" main
-    chmod 700 max-tools.sh
-    mv max-tools.sh max-tools
-    chown root:root max-tools
-    echo "Instalação completa."
+    tool_check_deps "curl" "mkdir"
+    INSTALL_DIR="/root/bin"
+    SCRIPT_NAME="max-tools"
+
+    [ ! -d "$INSTALL_DIR" ] && mkdir -p "$INSTALL_DIR"
+
+    curl -s -o "$INSTALL_DIR/$SCRIPT_NAME.sh" "$GITHUB_REPO_URL"
+
+    mv "$INSTALL_DIR/$SCRIPT_NAME.sh" "$INSTALL_DIR/$SCRIPT_NAME"
+    chmod 700 "$INSTALL_DIR/$SCRIPT_NAME"
+    chown root:root "$INSTALL_DIR/$SCRIPT_NAME"
+
+    echo "Instalação completa. O script está disponível em $INSTALL_DIR/$SCRIPT_NAME."
 }
 
 while [[ $# -gt 0 ]]; do
