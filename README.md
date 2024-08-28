@@ -21,7 +21,7 @@ show_help() {
     echo "  --top                    Exibe o uso recursos do servidor"
     echo "  --ip_abuse [ip]          Exibe os usuários com uso excessivo para de um IP"
     echo "  --ip_block [ip]          Bloquear o IP especificado"
-    echo "  --list_blocked_ips [ip]  Lista IPs bloqueados, opcionalmente filtra por [ip]"
+    echo "  --list_blocked           Lista todas as regras de bloqueio no firewall"
     echo "  --install                Instalar a versão mais recente"
 }
 
