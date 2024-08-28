@@ -65,8 +65,9 @@ while [[ $# -gt 0 ]]; do
         --top) tool_top_command; shift ;;
         --ip_abuse) [ -z "$2" ] && echo "IP necessário." && exit 1; tool_ip_abuse "$2"; shift 2 ;;
         --ip_block) [ -z "$2" ] && echo "IP necessário." && exit 1; tool_ip_block "$2"; shift 2 ;;
-        --list_blocked_ips) tool_list_blocked_ips "$2"; shift 2 ;;
+        --list_blocked) tool_list_blocked; shift ;;
         --install) tool_install; shift ;;
         *) echo "Opção inválida: $1"; show_help; exit 1 ;;
     esac
 done
+
