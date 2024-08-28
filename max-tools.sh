@@ -52,15 +52,14 @@ tool_install() {
     SCRIPT_NAME="max-tools"
 
     [ ! -d "$INSTALL_DIR" ] && mkdir -p "$INSTALL_DIR"
-
     curl -s -o "$INSTALL_DIR/$SCRIPT_NAME.sh" "$GITHUB_REPO_URL"
-
     mv "$INSTALL_DIR/$SCRIPT_NAME.sh" "$INSTALL_DIR/$SCRIPT_NAME"
     chmod 700 "$INSTALL_DIR/$SCRIPT_NAME"
     chown root:root "$INSTALL_DIR/$SCRIPT_NAME"
 
-    echo "Instalação completa. O script está disponível em $INSTALL_DIR/$SCRIPT_NAME."
+    echo "Instalacao completa. O script esta disponivel em $INSTALL_DIR/$SCRIPT_NAME."
 }
+
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
