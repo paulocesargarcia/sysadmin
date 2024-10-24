@@ -9,6 +9,7 @@ Para instalar ou atualizar o script, execute o comando abaixo:
 ```bash
 sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/max-tools.sh") --install
 
+
 ## Menu
 
 Lista de recursos do script:
@@ -25,3 +26,5 @@ show_help() {
     echo "  --install                Instalar a versão mais recente"
 }
 
+# update-php-ini
+bash <(curl -s https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/update-php-ini.sh)
