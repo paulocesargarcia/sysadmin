@@ -19,7 +19,7 @@ done
 for version in $(ls /opt/cpanel/ | grep ea-php); do
   whmapi1 php_ini_set_directives \
     directive-1='allow_url_fopen:0' \
-    directive-3='display_errors:1' \
+    directive-3='display_errors:0' \
     directive-4='file_uploads:1' \
     directive-5='memory_limit:512M' \
     directive-6='post_max_size:512M' \
