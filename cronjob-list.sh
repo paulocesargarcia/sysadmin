@@ -4,4 +4,6 @@ for user in $(ls /var/cpanel/users); do crontab -l -u $user 2>/dev/null | grep -
 
 
 
-# ns53 "bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cronjob-list.sh)" > ns53-log.txt
+# ns59 "bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cronjob-list.sh)" > ns59-log.txt
+
+
