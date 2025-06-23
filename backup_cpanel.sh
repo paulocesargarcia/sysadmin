@@ -1,18 +1,31 @@
 #!/bin/bash
 
 DESTINO=$(pwd)
+USERS=()
 
-if [ -z "$1" ]; then
-    echo "Uso: $0 all | usuario1,usuario2,usuario3"
+# Parse argumentos
+for arg in "$@"; do
+    case $arg in
+        --all)
+            mapfile -t USERS < <(ls -A /var/cpanel/users)
+            ;;
+        --user=*)
+            IFS=',' read -ra USERS <<< "${arg#*=}"
+            ;;
+        *)
+            echo "Uso: $0 [--all] [--user=usuario1,usuario2]"
+            exit 1
+            ;;
+    esac
+done
+
+# Verificação
+if [ ${#USERS[@]} -eq 0 ]; then
+    echo "Nenhuma conta especificada para backup."
     exit 1
 fi
 
-if [ "$1" == "all" ]; then
-    USERS=$(ls -A /var/cpanel/users)
-else
-    IFS=',' read -ra USERS <<< "$1"
-fi
-
+# Execução dos backups
 for user in "${USERS[@]}"; do
     echo "Iniciando backup da conta: $user"
     /scripts/pkgacct "$user" "$DESTINO"
