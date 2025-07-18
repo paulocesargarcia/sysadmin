@@ -111,7 +111,7 @@ else
     exit 1
 fi 
 
-# wget 
+# curl -s https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/backup_cpanel_all.sh
 # mkdir -p /root/scripts
 # chmod +x /root/scripts/backup_cpanel_all.sh
 # 00 01 * * * /root/scripts/backup_cpanel_all.sh > /dev/null 2>&1
