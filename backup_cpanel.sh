@@ -33,5 +33,5 @@ done
 
 echo "Backups finalizados em: $DESTINO"
 
-# sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/backup_cpanel.sh")
+# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/backup_cpanel.sh")
 
