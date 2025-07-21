@@ -67,7 +67,7 @@ for USER in $USERS_LIST; do
     else
         log_message "ERRO: Falha no backup do usuário $USER"
         FAILED_BACKUPS=$((FAILED_BACKUPS + 1))
-        FAILED_USERS="$FAILED_USERS<br>- $USER"
+        FAILED_USERS="$FAILED_USERS - $USER "
     fi
 done
 
