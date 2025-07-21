@@ -51,7 +51,16 @@ log_message "Total de usuários encontrados: $TOTAL_USERS"
 
 for USER in $USERS_LIST; do
     log_message "Iniciando backup do usuário: $USER"
-    
+    # Remove backup anterior se existir
+    BACKUP_FILE="$BACKUP_DIR/$USER.tar.gz"
+    if [ -f "$BACKUP_FILE" ]; then
+        log_message "Removendo backup anterior de $USER"
+        if [[ "$BACKUP_FILE" == "/backup/databases/"* ]]; then
+            rm -f "$BACKUP_FILE"
+        else
+            log_message "AVISO: Tentativa de remoção de arquivo fora do diretório permitido: $BACKUP_FILE"
+        fi
+    fi
     if /usr/local/cpanel/scripts/pkgacct --skiphomedir --backup "$USER" "$BACKUP_DIR"; then
         log_message "Backup do usuário $USER concluído com sucesso"
         SUCCESSFUL_BACKUPS=$((SUCCESSFUL_BACKUPS + 1))
