@@ -41,7 +41,7 @@ log_message "Data/Hora: $DATE_READABLE"
 
 mkdir -p "$BACKUP_DIR"
 
-USERS_LIST=$(whmapi1 listaccts | awk '/user: / {print $2}' | sort)
+USERS_LIST=$(/usr/local/cpanel/bin/whmapi1 listaccts | awk '/user: / {print $2}' | sort)
 TOTAL_USERS=$(echo "$USERS_LIST" | wc -l)
 SUCCESSFUL_BACKUPS=0
 FAILED_BACKUPS=0
