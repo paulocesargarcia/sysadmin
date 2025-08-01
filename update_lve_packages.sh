@@ -22,3 +22,7 @@ lvectl package-list | tail -n +2 | awk '{ print $1 }' | while read -r PKG; do
 done
 
 lvectl apply all
+
+
+
+# sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/update_lve_packages.sh")
