@@ -120,9 +120,11 @@ else
     exit 1
 fi 
 
-# wget https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/backup_cpanel_all.sh
 # mkdir -p /root/scripts
-# chmod +x /root/scripts/backup_cpanel_all.sh
-# 00 01 * * * /root/scripts/backup_cpanel_all.sh > /dev/null 2>&1
+# cd /root/scripts
+# wget https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/backup_cpanel_all.sh
+# chmod +x backup_cpanel_all.sh
+# crontab -e
+# 10 01 * * * /root/scripts/backup_cpanel_all.sh > /dev/null 2>&1
 
 
