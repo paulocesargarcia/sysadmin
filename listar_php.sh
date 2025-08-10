@@ -9,14 +9,13 @@ echo -e "user\tdomain\tphp_pkg\tphp_version" > "$OUT"
 whmapi1 listaccts --output=json 2>/dev/null \
 | jq -r '.data.acct[].user' \
 | while read -r user; do
-    uapi --user="$user" LangPHP php_get_vhost_versions --output=json 2>/dev/null \
-    | jq -r --arg user "$user" '
-        .result.data[]? |
+    uapi --user=paraguaymundial LangPHP php_get_vhost_versions --output=json \
+    | jq -r '
+        .result.data[] |
         [
-            $user,
-            (.phpversion_source.domain // .vhost // "-"),
-            (.version // "-"),
-            ((.version // "") | capture("ea-php(?<maj>[0-9]+)(?<min>[0-9]+)") | "\(.maj).\(.min)")
+        .phpversion_source.domain // .vhost,
+        .version,
+        (.version | capture("ea-php(?<maj>[0-9]+)(?<min>[0-9]+)") | "\(.maj).\(.min)")
         ] | @tsv
     ' >> "$OUT"
 done
