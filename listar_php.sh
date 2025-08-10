@@ -26,3 +26,6 @@ whmapi1 listaccts --output=yaml 2>/dev/null | awk '/^  user: /{print $2}' | whil
 done
 
 echo "Gerado: $OUT"
+
+
+# sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/listar_php.sh")
