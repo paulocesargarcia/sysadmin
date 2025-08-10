@@ -9,7 +9,7 @@ echo -e "user\tdomain\tphp_pkg\tphp_version" > "$OUT"
 whmapi1 listaccts --output=json 2>/dev/null \
 | jq -r '.data.acct[].user' \
 | while read -r user; do
-    uapi --user=paraguaymundial LangPHP php_get_vhost_versions --output=json \
+    uapi --user=$user LangPHP php_get_vhost_versions --output=json \
     | jq -r '
         .result.data[] |
         [
