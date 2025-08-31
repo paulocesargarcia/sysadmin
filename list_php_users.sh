@@ -39,8 +39,7 @@ case "$mode" in
 esac
 
 
-# sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") dump 
 
-# dump 
-# apply 
-# --dry-run
+bash <(curl -fsSL "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") dump
+bash <(curl -fsSL "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") apply --dry-run
+bash <(curl -fsSL "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") apply
