@@ -71,3 +71,4 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# sh <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/max-tools.sh") --install
