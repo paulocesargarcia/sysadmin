@@ -25,6 +25,7 @@ for version in $(ls /opt/cpanel/ | grep ea-php); do
     directive-6='post_max_size:512M' \
     directive-7='upload_max_filesize:512M' \
     directive-8='zlib.output_compression:1' \
+    directive-9='max_input_vars:5000' \
     version="$version"
     
   echo "Diretivas PHP ajustadas para a versão $version"
