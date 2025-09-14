@@ -10,4 +10,4 @@ done
 
 
 
-# bash -x <(curl -fsSL "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") 
+# bash <(curl -fsSL "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/list_php_users.sh") > /root/php_users.log
