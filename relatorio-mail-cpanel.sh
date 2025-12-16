@@ -22,7 +22,7 @@ mask_line() {
 
 run() { "$@" 2>&1 || true; }
 
-# --- gera relatorio ---
+# ===== GERA RELATORIO =====
 {
   echo "=== DATA ==="
   run date
@@ -50,14 +50,9 @@ run() { "$@" 2>&1 || true; }
   echo "=== LIMITES POR USUARIO (max 10) ==="
   if [ -d /var/cpanel/users ]; then
     run ls -1 /var/cpanel/users 2>/dev/null | sort | head -n 10 | while read -r u; do
-      [ -z "$u" ] && continue
       f="/var/cpanel/users/$u"
       v="$(run grep -E '^MAXEMAILSPERHOUR=' "$f" | head -n1)"
-      if [ -n "${v:-}" ]; then
-        echo "$u $v"
-      else
-        echo "$u MAXEMAILSPERHOUR=(nao definido)"
-      fi
+      [ -n "$v" ] && echo "$u $v" || echo "$u MAXEMAILSPERHOUR=(nao definido)"
     done | mask_line || true
   else
     echo "Diretorio /var/cpanel/users nao encontrado"
@@ -69,10 +64,10 @@ run() { "$@" 2>&1 || true; }
     echo "--- total na fila ---"
     run exim -bpc
     echo
-    echo "--- amostra fila (primeiras 200 linhas) ---"
+    echo "--- amostra fila (200) ---"
     run exim -bp | head -n 200 | mask_line || true
     echo
-    echo "--- frozen (ate 100) ---"
+    echo "--- frozen (100) ---"
     run exim -bp | grep -i frozen | head -n 100 | mask_line || true
   else
     echo "exim nao encontrado"
@@ -86,11 +81,11 @@ run() { "$@" 2>&1 || true; }
   if [ -n "$LOG" ]; then
     run tail -n 200 "$LOG" | egrep -i 'defer|frozen|retry|queue|blocked|rate|throttle|limit' | mask_line || true
   else
-    echo "Nao achei /var/log/exim_mainlog nem /var/log/exim/mainlog"
+    echo "Nao achei exim_mainlog/mainlog"
   fi
   echo
 
-  echo "=== EXIM CONFIG (trechos de limites relevantes) ==="
+  echo "=== EXIM CONFIG (trechos relevantes) ==="
   if [ -f /etc/exim.conf ]; then
     run egrep -n 'smtp_accept_max|smtp_accept_max_per_connection|remote_max_parallel|queue|retry|timeout|acl_smtp|acl_check|ratelimit|throttle|max_rcpt|max_recipients' \
       /etc/exim.conf | head -n 250 | mask_line || true
@@ -102,22 +97,15 @@ run() { "$@" 2>&1 || true; }
 
 echo "Relatorio gerado em $OUT"
 
-# --- envia email com ANEXO ---
+# ===== ENVIO POR EMAIL (ANEXO) =====
 if command -v mail >/dev/null 2>&1; then
-  # precisa ser mailx/s-nail (suporta -a)
-  if mail -V 2>/dev/null | egrep -qi '(s-nail|mailx|heirloom)'; then
-    echo "Enviando email com anexo via mail..."
-    mail -s "$ASSUNTO" -a "$OUT" "$DESTINO" <<< "Relatorio em anexo."
-    echo "Email enviado para $DESTINO"
-  else
-    echo "ERRO: comando 'mail' encontrado, mas nao identifiquei suporte a anexo (-a)."
-    echo "Instale s-nail: yum install -y s-nail"
-    exit 2
-  fi
+  echo "Enviando email com anexo..."
+  mail -s "$ASSUNTO" -a "$OUT" "$DESTINO" <<< "Relatorio em anexo."
+  echo "Email enviado para $DESTINO"
 else
-  echo "ERRO: comando 'mail' nao encontrado. Instale s-nail:"
-  echo "yum install -y s-nail"
+  echo "ERRO: comando 'mail' nao encontrado"
   exit 2
 fi
+
 
 # bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/relatorio-mail-cpanel.sh) paulo@setik.com.py
