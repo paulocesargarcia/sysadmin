@@ -1,6 +1,5 @@
 #!/bin/bash
 set -u
-# sem "set -e" para nao abortar no meio; vamos tratar erros pontualmente
 set -o pipefail
 
 if [ $# -ne 1 ]; then
@@ -21,13 +20,16 @@ mask_line() {
     -e 's/\b([A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b/[DOMINIO]/g'
 }
 
-run() {  # run "cmd..." e nunca aborta
-  "$@" 2>&1 || true
-}
+run() { "$@" 2>&1 || true; }
 
+# --- gera relatorio ---
 {
   echo "=== DATA ==="
   run date
+  echo
+
+  echo "=== HOST ==="
+  echo "$HOST"
   echo
 
   echo "=== VERSOES ==="
@@ -47,10 +49,15 @@ run() {  # run "cmd..." e nunca aborta
 
   echo "=== LIMITES POR USUARIO (max 10) ==="
   if [ -d /var/cpanel/users ]; then
-    ls -1 /var/cpanel/users 2>/dev/null | sort | head -n 10 | while read -r u; do
+    run ls -1 /var/cpanel/users 2>/dev/null | sort | head -n 10 | while read -r u; do
+      [ -z "$u" ] && continue
       f="/var/cpanel/users/$u"
-      v="$(grep -E '^MAXEMAILSPERHOUR=' "$f" 2>/dev/null | head -n1 || true)"
-      [ -n "$v" ] && echo "$u $v" || echo "$u MAXEMAILSPERHOUR=(nao definido)"
+      v="$(run grep -E '^MAXEMAILSPERHOUR=' "$f" | head -n1)"
+      if [ -n "${v:-}" ]; then
+        echo "$u $v"
+      else
+        echo "$u MAXEMAILSPERHOUR=(nao definido)"
+      fi
     done | mask_line || true
   else
     echo "Diretorio /var/cpanel/users nao encontrado"
@@ -95,26 +102,22 @@ run() {  # run "cmd..." e nunca aborta
 
 echo "Relatorio gerado em $OUT"
 
-# envio por email (corpo do email = relatorio)
+# --- envia email com ANEXO ---
 if command -v mail >/dev/null 2>&1; then
-  echo "Enviando via mail..."
-  run mail -s "$ASSUNTO" "$DESTINO" < "$OUT"
-  echo "Email enviado para $DESTINO"
-elif command -v sendmail >/dev/null 2>&1; then
-  echo "Enviando via sendmail..."
-  {
-    echo "Subject: $ASSUNTO"
-    echo "To: $DESTINO"
-    echo
-    cat "$OUT"
-  } | run sendmail -t
-  echo "Email enviado para $DESTINO"
+  # precisa ser mailx/s-nail (suporta -a)
+  if mail -V 2>/dev/null | egrep -qi '(s-nail|mailx|heirloom)'; then
+    echo "Enviando email com anexo via mail..."
+    mail -s "$ASSUNTO" -a "$OUT" "$DESTINO" <<< "Relatorio em anexo."
+    echo "Email enviado para $DESTINO"
+  else
+    echo "ERRO: comando 'mail' encontrado, mas nao identifiquei suporte a anexo (-a)."
+    echo "Instale s-nail: yum install -y s-nail"
+    exit 2
+  fi
 else
-  echo "ERRO: nem 'mail' (mailx) nem 'sendmail' encontrados. Relatorio esta em: $OUT"
+  echo "ERRO: comando 'mail' nao encontrado. Instale s-nail:"
+  echo "yum install -y s-nail"
   exit 2
 fi
-
-
-
 
 # bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/relatorio-mail-cpanel.sh) paulo@setik.com.py
