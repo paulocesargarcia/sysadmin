@@ -1,7 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-OUT="/root/relatorio-mail-cpanel_$(date +%F_%H%M).txt"
+if [ $# -ne 1 ]; then
+  echo "Uso: $0 email@destino.com"
+  exit 1
+fi
+
+DESTINO="$1"
+HOST="$(hostname)"
+DATA="$(date +%F_%H%M)"
+OUT="/root/relatorio-mail-cpanel_${HOST}_${DATA}.txt"
+ASSUNTO="Relatorio Mail cPanel/Exim - ${HOST} - ${DATA}"
 
 mask_line() {
   sed -E \
@@ -22,63 +31,50 @@ mask_line() {
   echo
 
   echo "=== LIMITES GLOBAIS (cpanel.config) ==="
-  if [ -f /var/cpanel/cpanel.config ]; then
-    egrep -n '^(maxemailsperhour|email_send_limits|smtp_accept_max_per_connection|smtp_accept_max|max_defer_fail|max_recipients_per_message|max_rcpt|acl_|skipmaxemailsperhour)' \
-      /var/cpanel/cpanel.config 2>/dev/null | mask_line || true
-  else
-    echo "Arquivo /var/cpanel/cpanel.config nao encontrado"
-  fi
+  [ -f /var/cpanel/cpanel.config ] \
+    && egrep -n '^(maxemailsperhour|email_send_limits|smtp_accept_max|max_defer_fail|max_rcpt|skipmaxemailsperhour)' /var/cpanel/cpanel.config | mask_line \
+    || echo "Arquivo nao encontrado"
   echo
 
-  echo "=== LIMITES POR USUARIO (MAXEMAILSPERHOUR) ==="
-  if [ -d /var/cpanel/users ]; then
-    for f in /var/cpanel/users/*; do
-      u="$(basename "$f")"
-      v="$(grep -E '^MAXEMAILSPERHOUR=' "$f" 2>/dev/null | head -n1 || true)"
-      [ -n "$v" ] && echo "$u $v"
-    done | sort | mask_line || true
-  else
-    echo "Diretorio /var/cpanel/users nao encontrado"
-  fi
+  echo "=== LIMITES POR USUARIO ==="
+  for f in /var/cpanel/users/*; do
+    u="$(basename "$f")"
+    v="$(grep -E '^MAXEMAILSPERHOUR=' "$f" 2>/dev/null || true)"
+    [ -n "$v" ] && echo "$u $v"
+  done | sort | mask_line
   echo
 
-  echo "=== EXIM: FILA (TOP 30) ==="
-  if command -v exim >/dev/null 2>&1; then
-    exim -bp 2>/dev/null | head -n 200 | mask_line || true
-    echo
-    echo "--- contagem total na fila ---"
-    exim -bpc 2>/dev/null || true
-    echo
-    echo "--- FROZEN (amostra) ---"
-    exim -bp 2>/dev/null | grep -i frozen | head -n 100 | mask_line || true
-  else
-    echo "exim nao encontrado"
-  fi
+  echo "=== EXIM FILA / FROZEN ==="
+  exim -bpc
+  echo
+  exim -bp | grep -i frozen | head -n 100 | mask_line || true
   echo
 
-  echo "=== MAILLOG (ultimas 200 linhas relevantes) ==="
-  LOG=""
-  [ -f /var/log/exim_mainlog ] && LOG="/var/log/exim_mainlog"
-  [ -z "$LOG" ] && [ -f /var/log/exim/mainlog ] && LOG="/var/log/exim/mainlog"
-  if [ -n "$LOG" ]; then
-    tail -n 200 "$LOG" | egrep -i 'defer|frozen|retry|queue|spam|blocked|rate|throttle|limit' | mask_line || true
-  else
-    echo "Nao achei exim_mainlog/mainlog"
-  fi
-  echo
-
-  echo "=== EXIM CONFIG (limites relevantes) ==="
-  if [ -f /etc/exim.conf ]; then
-    egrep -n 'smtp_accept_max|smtp_accept_max_per_connection|remote_max_parallel|queue|retry|timeout|acl_smtp|acl_check|ratelimit|throttle|max_rcpt|max_recipients' \
-      /etc/exim.conf 2>/dev/null | head -n 250 | mask_line || true
-  else
-    echo "/etc/exim.conf nao encontrado"
-  fi
+  echo "=== MAILLOG (resumo) ==="
+  LOG="/var/log/exim_mainlog"
+  [ -f /var/log/exim/mainlog ] && LOG="/var/log/exim/mainlog"
+  tail -n 200 "$LOG" | egrep -i 'defer|frozen|retry|rate|limit|throttle' | mask_line || true
 
 } > "$OUT"
 
-echo "OK: relatorio gerado em: $OUT"
-echo "Envie o conteudo desse arquivo aqui."
+echo "Relatorio gerado em $OUT"
+
+if command -v mail >/dev/null 2>&1; then
+  mail -s "$ASSUNTO" "$DESTINO" < "$OUT"
+elif command -v sendmail >/dev/null 2>&1; then
+  {
+    echo "Subject: $ASSUNTO"
+    echo "To: $DESTINO"
+    echo
+    cat "$OUT"
+  } | sendmail -t
+else
+  echo "ERRO: mail/sendmail nao encontrado"
+  exit 2
+fi
+
+echo "Email enviado para $DESTINO"
+
 
 
 # bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/relatorio-mail-cpanel.sh)
