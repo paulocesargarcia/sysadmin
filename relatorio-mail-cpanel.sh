@@ -1,5 +1,7 @@
 #!/bin/bash
-set -euo pipefail
+set -u
+# sem "set -e" para nao abortar no meio; vamos tratar erros pontualmente
+set -o pipefail
 
 if [ $# -ne 1 ]; then
   echo "Uso: $0 email@destino.com"
@@ -7,8 +9,8 @@ if [ $# -ne 1 ]; then
 fi
 
 DESTINO="$1"
-HOST="$(hostname)"
-DATA="$(date +%F_%H%M)"
+HOST="$(hostname 2>/dev/null || echo unknown-host)"
+DATA="$(date +%F_%H%M 2>/dev/null || echo unknown-date)"
 OUT="/root/relatorio-mail-cpanel_${HOST}_${DATA}.txt"
 ASSUNTO="Relatorio Mail cPanel/Exim - ${HOST} - ${DATA}"
 
@@ -19,61 +21,104 @@ mask_line() {
     -e 's/\b([A-Za-z0-9-]+\.)+[A-Za-z]{2,}\b/[DOMINIO]/g'
 }
 
+run() {  # run "cmd..." e nunca aborta
+  "$@" 2>&1 || true
+}
+
 {
   echo "=== DATA ==="
-  date
+  run date
   echo
 
   echo "=== VERSOES ==="
-  (cat /etc/redhat-release 2>/dev/null || lsb_release -a 2>/dev/null || true) | mask_line || true
-  echo "cpanel: $(/usr/local/cpanel/cpanel -V 2>/dev/null || echo desconhecido)"
-  echo "exim: $(exim -bV 2>/dev/null | head -n1 || echo desconhecido)"
+  (run cat /etc/redhat-release || run lsb_release -a) | mask_line || true
+  echo "cpanel: $(run /usr/local/cpanel/cpanel -V | head -n1 | mask_line)"
+  echo "exim: $(run exim -bV | head -n1 | mask_line)"
   echo
 
   echo "=== LIMITES GLOBAIS (cpanel.config) ==="
-  [ -f /var/cpanel/cpanel.config ] \
-    && egrep -n '^(maxemailsperhour|email_send_limits|smtp_accept_max|max_defer_fail|max_rcpt|skipmaxemailsperhour)' /var/cpanel/cpanel.config | mask_line \
-    || echo "Arquivo nao encontrado"
+  if [ -f /var/cpanel/cpanel.config ]; then
+    run egrep -n '^(maxemailsperhour|email_send_limits|smtp_accept_max(_per_connection)?|smtp_accept_max|max_defer_fail|max_rcpt|skipmaxemailsperhour)' \
+      /var/cpanel/cpanel.config | mask_line || true
+  else
+    echo "Arquivo /var/cpanel/cpanel.config nao encontrado"
+  fi
   echo
 
-  echo "=== LIMITES POR USUARIO ==="
-  for f in /var/cpanel/users/*; do
-    u="$(basename "$f")"
-    v="$(grep -E '^MAXEMAILSPERHOUR=' "$f" 2>/dev/null || true)"
-    [ -n "$v" ] && echo "$u $v"
-  done | sort | mask_line
+  echo "=== LIMITES POR USUARIO (max 10) ==="
+  if [ -d /var/cpanel/users ]; then
+    run ls -1 /var/cpanel/users | sort | head -n 10 | while read -r u; do
+      [ -z "$u" ] && continue
+      f="/var/cpanel/users/$u"
+      v="$(run grep -E '^MAXEMAILSPERHOUR=' "$f" | head -n1)"
+      if [ -n "${v:-}" ]; then
+        echo "$u $v"
+      else
+        echo "$u MAXEMAILSPERHOUR=(nao definido)"
+      fi
+    done | mask_line || true
+  else
+    echo "Diretorio /var/cpanel/users nao encontrado"
+  fi
   echo
 
   echo "=== EXIM FILA / FROZEN ==="
-  exim -bpc
-  echo
-  exim -bp | grep -i frozen | head -n 100 | mask_line || true
+  if command -v exim >/dev/null 2>&1; then
+    echo "--- total na fila ---"
+    run exim -bpc
+    echo
+    echo "--- amostra fila (primeiras 200 linhas) ---"
+    run exim -bp | head -n 200 | mask_line || true
+    echo
+    echo "--- frozen (ate 100) ---"
+    run exim -bp | grep -i frozen | head -n 100 | mask_line || true
+  else
+    echo "exim nao encontrado"
+  fi
   echo
 
-  echo "=== MAILLOG (resumo) ==="
-  LOG="/var/log/exim_mainlog"
-  [ -f /var/log/exim/mainlog ] && LOG="/var/log/exim/mainlog"
-  tail -n 200 "$LOG" | egrep -i 'defer|frozen|retry|rate|limit|throttle' | mask_line || true
+  echo "=== MAILLOG (ultimas 200 linhas relevantes) ==="
+  LOG=""
+  [ -f /var/log/exim_mainlog ] && LOG="/var/log/exim_mainlog"
+  [ -z "$LOG" ] && [ -f /var/log/exim/mainlog ] && LOG="/var/log/exim/mainlog"
+  if [ -n "$LOG" ]; then
+    run tail -n 200 "$LOG" | egrep -i 'defer|frozen|retry|queue|blocked|rate|throttle|limit' | mask_line || true
+  else
+    echo "Nao achei /var/log/exim_mainlog nem /var/log/exim/mainlog"
+  fi
+  echo
+
+  echo "=== EXIM CONFIG (trechos de limites relevantes) ==="
+  if [ -f /etc/exim.conf ]; then
+    run egrep -n 'smtp_accept_max|smtp_accept_max_per_connection|remote_max_parallel|queue|retry|timeout|acl_smtp|acl_check|ratelimit|throttle|max_rcpt|max_recipients' \
+      /etc/exim.conf | head -n 250 | mask_line || true
+  else
+    echo "/etc/exim.conf nao encontrado"
+  fi
 
 } > "$OUT"
 
 echo "Relatorio gerado em $OUT"
 
+# envio por email (corpo do email = relatorio)
 if command -v mail >/dev/null 2>&1; then
-  mail -s "$ASSUNTO" "$DESTINO" < "$OUT"
+  echo "Enviando via mail..."
+  run mail -s "$ASSUNTO" "$DESTINO" < "$OUT"
+  echo "Email enviado para $DESTINO"
 elif command -v sendmail >/dev/null 2>&1; then
+  echo "Enviando via sendmail..."
   {
     echo "Subject: $ASSUNTO"
     echo "To: $DESTINO"
     echo
     cat "$OUT"
-  } | sendmail -t
+  } | run sendmail -t
+  echo "Email enviado para $DESTINO"
 else
-  echo "ERRO: mail/sendmail nao encontrado"
+  echo "ERRO: nem 'mail' (mailx) nem 'sendmail' encontrados. Relatorio esta em: $OUT"
   exit 2
 fi
 
-echo "Email enviado para $DESTINO"
 
 
 
