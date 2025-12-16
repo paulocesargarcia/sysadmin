@@ -47,15 +47,10 @@ run() {  # run "cmd..." e nunca aborta
 
   echo "=== LIMITES POR USUARIO (max 10) ==="
   if [ -d /var/cpanel/users ]; then
-    run ls -1 /var/cpanel/users | sort | head -n 10 | while read -r u; do
-      [ -z "$u" ] && continue
+    ls -1 /var/cpanel/users 2>/dev/null | sort | head -n 10 | while read -r u; do
       f="/var/cpanel/users/$u"
-      v="$(run grep -E '^MAXEMAILSPERHOUR=' "$f" | head -n1)"
-      if [ -n "${v:-}" ]; then
-        echo "$u $v"
-      else
-        echo "$u MAXEMAILSPERHOUR=(nao definido)"
-      fi
+      v="$(grep -E '^MAXEMAILSPERHOUR=' "$f" 2>/dev/null | head -n1 || true)"
+      [ -n "$v" ] && echo "$u $v" || echo "$u MAXEMAILSPERHOUR=(nao definido)"
     done | mask_line || true
   else
     echo "Diretorio /var/cpanel/users nao encontrado"
@@ -122,4 +117,4 @@ fi
 
 
 
-# bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/relatorio-mail-cpanel.sh)
+# bash <(curl -sk https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/relatorio-mail-cpanel.sh) paulo@setik.com.py
