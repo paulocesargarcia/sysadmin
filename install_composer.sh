@@ -3,13 +3,27 @@ set -euo pipefail
 
 COMPOSER_BIN="/usr/local/bin/composer"
 
-# Detecta a última versão do PHP EA instalada
+# Verifica se é CloudLinux
+is_cloudlinux() {
+  [[ -f /etc/cloudlinux-release ]]
+}
+
+# Detecta o PHP disponível no sistema
 detect_php() {
-  local php_path
-  php_path=$(ls -d /opt/cpanel/ea-php*/root/usr/bin/php 2>/dev/null | sort -V | tail -1)
+  local php_path=""
+  
+  # CloudLinux/cPanel: busca o PHP EA mais recente
+  if is_cloudlinux; then
+    php_path=$(ls -d /opt/cpanel/ea-php*/root/usr/bin/php 2>/dev/null | sort -V | tail -1)
+  fi
+  
+  # Fallback: PHP padrão do sistema
+  if [[ -z "$php_path" || ! -x "$php_path" ]]; then
+    php_path=$(command -v php 2>/dev/null || true)
+  fi
   
   if [[ -z "$php_path" || ! -x "$php_path" ]]; then
-    echo "ERRO: Nenhum PHP EA encontrado em /opt/cpanel/" >&2
+    echo "ERRO: PHP não encontrado no sistema" >&2
     exit 1
   fi
   
@@ -31,9 +45,9 @@ install_composer() {
   rm -f "$tmp_installer"
 }
 
-# Integra com CageFS (CloudLinux)
+# Integra com CageFS (apenas CloudLinux)
 setup_cagefs() {
-  if ! command -v cagefsctl >/dev/null 2>&1; then
+  if ! is_cloudlinux || ! command -v cagefsctl >/dev/null 2>&1; then
     return
   fi
   
@@ -47,23 +61,15 @@ EOF
   cagefsctl --force-update || true
 }
 
-# Verifica se é CloudLinux
-is_cloudlinux() {
-  [[ -f /etc/cloudlinux-release ]]
-}
-
 # Main
 main() {
-  if ! is_cloudlinux; then
-    echo "AVISO: Este script é otimizado para CloudLinux."
-    echo "Detectado: $(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d '"')"
-    read -rp "Deseja continuar mesmo assim? [s/N] " resp
-    [[ "${resp,,}" == "s" ]] || exit 0
-  fi
+  local os_name
+  os_name=$(grep PRETTY_NAME /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "Linux")
+  echo "Sistema: $os_name"
   
   local php_bin
   php_bin=$(detect_php)
-  echo "PHP detectado: $php_bin"
+  echo "PHP: $php_bin ($("$php_bin" -v | head -1))"
   
   install_composer "$php_bin"
   setup_cagefs
