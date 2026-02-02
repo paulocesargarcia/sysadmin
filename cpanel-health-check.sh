@@ -44,16 +44,17 @@ if command -v whmapi1 &>/dev/null && [ "$(id -u)" -eq 0 ]; then
     RAW=$(whmapi1 servicestatus --output=json 2>/dev/null)
     if [ -n "$RAW" ] && echo "$RAW" | grep -q '"service"'; then
         if command -v jq &>/dev/null; then
-            LINES=$(echo "$RAW" | jq -r '.data.service[]? | "\(.displayname // .name | tostring):\(.status)"' 2>/dev/null)
+            # API usa display_name e running (1/0); só listar habilitados e instalados
+            LINES=$(echo "$RAW" | jq -r '.data.service[]? | select((.enabled // 1) == 1 and (.installed // 1) == 1) | "\(.display_name // .displayname // .name | tostring):\(.running // 0)"' 2>/dev/null)
             if [ -n "$LINES" ]; then
-                echo "$LINES" | while IFS=: read -r name status; do
+                echo "$LINES" | while IFS=: read -r name running; do
                     [ -z "$name" ] && continue
-                    case "$status" in
-                        up) out="RODANDO" ;;
-                        pending) out="PENDENTE" ;;
-                        *) out="FALHOU / PARADO" ;;
-                    esac
-                    printf "%-15s: %s\n" "${name:0:15}" "$out"
+                    if [ "${running:-0}" = "1" ]; then
+                        out="RODANDO"
+                    else
+                        out="FALHOU / PARADO"
+                    fi
+                    printf "%-40s: %s\n" "${name:0:40}" "$out"
                 done
                 SERVICESTATUS_PRINTED=1
             fi
@@ -63,16 +64,18 @@ import json, sys
 try:
     d = json.load(sys.stdin)
     for s in d.get('data', {}).get('service', []):
-        name = (s.get('displayname') or s.get('name') or '?').strip()
-        st = (s.get('status') or 'down').strip()
-        out = 'RODANDO' if st == 'up' else ('PENDENTE' if st == 'pending' else 'FALHOU / PARADO')
-        print('{}:{}'.format(name[:15], out))
+        if s.get('enabled', 1) != 1 or s.get('installed', 1) != 1:
+            continue
+        name = (s.get('display_name') or s.get('displayname') or s.get('name') or '?').strip()
+        running = 1 if s.get('running', 0) == 1 else 0
+        out = 'RODANDO' if running else 'FALHOU / PARADO'
+        print('{}:{}'.format(name[:40], out))
 except Exception:
     pass
 " 2>/dev/null)
             if [ -n "$LINES" ]; then
                 echo "$LINES" | while IFS=: read -r name out; do
-                    printf "%-15s: %s\n" "$name" "$out"
+                    printf "%-40s: %s\n" "$name" "$out"
                 done
                 SERVICESTATUS_PRINTED=1
             fi
