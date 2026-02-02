@@ -37,15 +37,74 @@ echo -e "\n--- Armazenamento (Partições principais) ---"
 df -h | grep -E '^Filesystem|/$|/var|/home|/usr'
 
 # --- 3. SERVIÇOS CRÍTICOS E CPANEL ---
+# Prioridade: WHM API servicestatus (documentação oficial cPanel); fallback por processo (mysqld, cpsrvd, etc.)
 echo -e "\n[3. STATUS DOS SERVIÇOS]"
-for service in httpd mysql php-fpm cpanel tailwatchd; do
-    printf "%-15s: " "$service"
-    if pgrep -x "$service" > /dev/null || ([ "$service" == "httpd" ] && pgrep -x "httpd" > /dev/null); then
-        echo "RODANDO"
-    else
-        echo "FALHOU / PARADO"
+SERVICESTATUS_PRINTED=0
+if command -v whmapi1 &>/dev/null && [ "$(id -u)" -eq 0 ]; then
+    RAW=$(whmapi1 servicestatus --output=json 2>/dev/null)
+    if [ -n "$RAW" ] && echo "$RAW" | grep -q '"service"'; then
+        if command -v jq &>/dev/null; then
+            LINES=$(echo "$RAW" | jq -r '.data.service[]? | "\(.displayname // .name | tostring):\(.status)"' 2>/dev/null)
+            if [ -n "$LINES" ]; then
+                echo "$LINES" | while IFS=: read -r name status; do
+                    [ -z "$name" ] && continue
+                    case "$status" in
+                        up) out="RODANDO" ;;
+                        pending) out="PENDENTE" ;;
+                        *) out="FALHOU / PARADO" ;;
+                    esac
+                    printf "%-15s: %s\n" "${name:0:15}" "$out"
+                done
+                SERVICESTATUS_PRINTED=1
+            fi
+        elif command -v python3 &>/dev/null; then
+            LINES=$(echo "$RAW" | python3 -c "
+import json, sys
+try:
+    d = json.load(sys.stdin)
+    for s in d.get('data', {}).get('service', []):
+        name = (s.get('displayname') or s.get('name') or '?').strip()
+        st = (s.get('status') or 'down').strip()
+        out = 'RODANDO' if st == 'up' else ('PENDENTE' if st == 'pending' else 'FALHOU / PARADO')
+        print('{}:{}'.format(name[:15], out))
+except Exception:
+    pass
+" 2>/dev/null)
+            if [ -n "$LINES" ]; then
+                echo "$LINES" | while IFS=: read -r name out; do
+                    printf "%-15s: %s\n" "$name" "$out"
+                done
+                SERVICESTATUS_PRINTED=1
+            fi
+        fi
     fi
-done
+fi
+if [ "$SERVICESTATUS_PRINTED" -eq 0 ]; then
+    # Fallback: nomes reais dos daemons (MySQL=mysqld, cPanel=cpsrvd)
+    check_service() {
+        local label="$1"
+        shift
+        local found=0
+        for proc in "$@"; do
+            if pgrep -x "$proc" &>/dev/null || pgrep -f "$proc" &>/dev/null; then
+                found=1
+                break
+            fi
+        done
+        printf "%-15s: %s\n" "$label" "$([ "$found" -eq 1 ] && echo "RODANDO" || echo "FALHOU / PARADO")"
+    }
+    check_service "httpd" "httpd"
+    check_service "mysql" "mysqld" "mariadbd"
+    check_service "php-fpm" "php-fpm"
+    check_service "cpanel" "cpsrvd"
+    check_service "tailwatchd" "tailwatchd"
+    check_service "exim" "exim"
+    check_service "named" "named"
+    check_service "dovecot" "dovecot"
+    check_service "crond" "crond"
+    check_service "sshd" "sshd"
+    check_service "ftpd" "pure-ftpd" "proftpd"
+fi
 
 # --- 4. ANÁLISE PHP-FPM E WEB ---
 echo -e "\n[4. CONFIGURAÇÃO E PERFORMANCE PHP-FPM]"
