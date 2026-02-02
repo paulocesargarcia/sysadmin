@@ -1,93 +1,85 @@
 #!/bin/bash
 
 # ===============================================================
-# NOMBRE: cpanel-health-check.sh (Versão Universal)
-# DESCRIPCIÓN: Diagnóstico de Performance - Compatível com MySQL/MariaDB
+# NOME: cpanel-health-check.sh
+# DESCRIÇÃO: Diagnóstico Especialista de Performance e Integridade
+# LOG: Gera saída na tela e em arquivo .log
 # ===============================================================
 
+# Definição do arquivo de log
 LOG_FILE="health_check_$(hostname)_$(date +%Y%m%d_%H%M%S).log"
+
+# Função para enviar saída para tela e arquivo simultaneamente
 exec > >(tee -i "$LOG_FILE") 2>&1
 
 clear
 echo "==============================================================="
-echo "       REPORTE TÉCNICO DE SALUD DEL SERVIDOR (SISTEMAS)"
+echo "       RELATÓRIO TÉCNICO DE SAÚDE DO SERVIDOR"
 echo "==============================================================="
 
-# --- 1. IDENTIFICACIÓN DO SISTEMA ---
-echo -e "\n[1. IDENTIFICACIÓN DO EQUIPO]"
+# --- 1. CABEÇALHO DE IDENTIFICAÇÃO ---
+echo -e "\n[1. IDENTIFICAÇÃO DO SISTEMA]"
 echo "Hostname:          $(hostname)"
-echo "Fecha:             $(date '+%d/%m/%Y %H:%M:%S')"
+echo "Data da Análise:   $(date '+%d/%m/%Y %H:%M:%S')"
 echo "Uptime:            $(uptime -p)"
-echo "Versão cPanel:     $(/usr/local/cpanel/cpanel -V 2>/dev/null || echo 'N/A')"
+echo "SO Version:        $(cat /etc/redhat-release 2>/dev/null || cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
+echo "Kernel:            $(uname -r)"
+echo "cPanel Version:    $(/usr/local/cpanel/cpanel -V)"
+echo "IP Principal:      $(hostname -I | awk '{print $1}')"
 
-# --- 2. RECURSOS DO SISTEMA ---
-echo -e "\n[2. RECURSOS E CARGA]"
-LOAD=$(cat /proc/loadavg | awk '{print $1 " " $2 " " $3}')
-echo "CPU Cores:         $(nproc)"
-echo "Carga (1/5/15):    $LOAD"
-free -h | grep "Mem:" | awk '{print "RAM: Total: "$2" | Usado: "$3" | Livre: "$4}'
+# --- 2. RECURSOS DE HARDWARE ---
+echo -e "\n[2. RECURSOS E CARGA (LOAD)]"
+echo "CPU (Núcleos):     $(nproc)"
+echo "Load Average:      $(cat /proc/loadavg)"
+echo -e "\n--- Memória RAM ---"
+free -h
+echo -e "\n--- Armazenamento (Partições principais) ---"
+df -h | grep -E '^Filesystem|/$|/var|/home|/usr'
 
-# --- 3. STATUS DOS SERVIÇOS (REVISADO) ---
-echo -e "\n[3. ESTADO DOS SERVIÇOS CRÍTICOS]"
-
-check_service() {
-    if systemctl is-active --quiet "$1"; then
-        echo -e "$1: \033[0;32mFUNCIONANDO\033[0m"
-        return 0
+# --- 3. SERVIÇOS CRÍTICOS E CPANEL ---
+echo -e "\n[3. STATUS DOS SERVIÇOS]"
+for service in httpd mysql php-fpm cpanel tailwatchd; do
+    printf "%-15s: " "$service"
+    if pgrep -x "$service" > /dev/null || ([ "$service" == "httpd" ] && pgrep -x "httpd" > /dev/null); then
+        echo "RODANDO"
     else
-        echo -e "$1: \033[0;31m¡FALLÓ! / PARADO\033[0m"
-        return 1
+        echo "FALHOU / PARADO"
     fi
-}
+done
 
-# Verifica Webserver
-check_service httpd
+# --- 4. ANÁLISE PHP-FPM E WEB ---
+echo -e "\n[4. CONFIGURAÇÃO E PERFORMANCE PHP-FPM]"
+echo "Versão PHP (CLI):  $(php -v | head -n 1)"
+echo "Limites max_children por pool:"
+grep -r "pm.max_children" /opt/cpanel/ea-php*/root/etc/php-fpm.d/ | awk -F: '{print $1 " -> " $2}' | sed 's/\/opt\/cpanel\///g'
 
-# Verifica Banco de Dados (Tenta MariaDB, depois MySQL)
-if systemctl is-active --quiet mariadb; then
-    echo -e "database: \033[0;32mFUNCIONANDO (MariaDB)\033[0m"
-    DB_TYPE="mariadb"
-elif systemctl is-active --quiet mysql; then
-    echo -e "database: \033[0;32mFUNCIONANDO (MySQL)\033[0m"
-    DB_TYPE="mysql"
-else
-    echo -e "database: \033[0;31m¡FALLÓ! (MySQL/MariaDB parado)\033[0m"
-    DB_TYPE="offline"
-fi
-
-# Outros serviços cPanel
-check_service cpanel
-check_service tailwatchd
-
-# --- 4. ANÁLISE DE BANCO DE DADOS ---
-echo -e "\n[4. ESTATÍSTICAS DO BANCO DE DADOS]"
+# --- 5. BANCO DE DADOS (MySQL/MariaDB) ---
+echo -e "\n[5. ESTATÍSTICAS DO BANCO DE DADOS]"
 if mysqladmin ping &>/dev/null; then
-    mysqladmin proc stat | head -n 1
+    mysqladmin proc stat
 else
-    # Tentativa de ver o erro se o ping falhar
-    echo "Erro: mysqladmin não responde. Verificando soquete..."
-    ls -la /var/lib/mysql/mysql.sock 2>/dev/null || echo "Soquete não encontrado em /var/lib/mysql/"
+    echo "ERRO: Não foi possível conectar ao MySQL."
 fi
 
-# --- 5. REDE (TOP 5 CONEXÕES) ---
-echo -e "\n[5. TOP 5 IPs CONECTADOS (Portas 80/443)]"
-netstat -ant | grep -E ':80|:443' | grep ESTABLISHED | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr | head -n 5
+# --- 6. REDE E CONEXÕES ATIVAS ---
+echo -e "\n[6. CONEXÕES DE REDE]"
+echo "Porta 80 (HTTP):   $(netstat -an | grep :80 | grep ESTABLISHED | wc -l) estabelecidas"
+echo "Porta 443 (HTTPS): $(netstat -an | grep :443 | grep ESTABLISHED | wc -l) estabelecidas"
+echo -e "\n--- Top 10 IPs com mais conexões (Geral) ---"
+netstat -antu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr | head -n 10
 
-# --- 6. RESUMO PARA A API GEMINI (Oculto ou Final) ---
-# Este bloco ajuda a IA do Workspace a não cometer erros de leitura
-echo -e "\n--- [DADOS_TECNICOS_JSON] ---"
-cat <<EOF
-{
-  "hostname": "$(hostname)",
-  "db_status": "$(systemctl is-active mariadb || systemctl is-active mysql)",
-  "db_engine": "$DB_TYPE",
-  "cpanel_status": "$(systemctl is-active cpanel)",
-  "load": "$LOAD",
-  "disk_usage": "$(df -h / | awk 'NR==2 {print $5}')"
-}
-EOF
-echo "--- [FIM_DADOS] ---"
+# --- 7. LOGS DE ERRO RECENTES (PHP-FPM) ---
+echo -e "\n[7. ÚLTIMOS ERROS PHP-FPM (Global)]"
+tail -n 20 /opt/cpanel/ea-php*/root/usr/var/log/php-fpm/error.log 2>/dev/null
+
+# --- 8. PROCESSOS MAIS PESADOS AGORA ---
+echo -e "\n[8. TOP 10 PROCESSOS QUE MAIS CONSOMEM CPU/MEM]"
+ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head -n 11
 
 echo -e "\n==============================================================="
-echo "              DIAGNÓSTICO CONCLUÍDO COM SUCESSO"
+echo "              FIM DO RELATÓRIO DE DIAGNÓSTICO"
+echo "Relatório salvo em: $LOG_FILE"
 echo "==============================================================="
+
+# Como usar este script remotamente:
+# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-health-check.sh")
