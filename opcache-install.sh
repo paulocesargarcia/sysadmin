@@ -12,7 +12,8 @@ opcache.fast_shutdown=1
 opcache.jit=0
 '
 
-for version in $(ls /opt/cpanel/ | grep ea-php); do
+for dir in /opt/cpanel/ea-php*/; do
+    version=$(basename "${dir%/}")
     PHPROOT="/opt/cpanel/$version/root"
     [ -d "$PHPROOT" ] || continue
     INI="$PHPROOT/etc/php.d/10-opcache.ini"
@@ -26,6 +27,9 @@ for version in $(ls /opt/cpanel/ | grep ea-php); do
     echo "$OPCACHE_CONF" > "$INI"
 
     systemctl restart "$FPM" 2>/dev/null
+
+    echo "OPcache aplicado em $version"
+
 done
 
 echo "OPcache aplicado em todas as versões EA-PHP."
