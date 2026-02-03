@@ -12,15 +12,16 @@ opcache.fast_shutdown=1
 opcache.jit=0
 '
 
-for PHPROOT in /opt/cpanel/ea-php*/root; do
-    PHPVER=$(basename "$PHPROOT")
+for version in $(ls /opt/cpanel/ | grep ea-php); do
+    PHPROOT="/opt/cpanel/$version/root"
+    [ -d "$PHPROOT" ] || continue
     INI="$PHPROOT/etc/php.d/10-opcache.ini"
-    FPM="${PHPVER}-php-fpm"
+    FPM="${version}-php-fpm"
 
-    echo "==> $PHPVER"
+    echo "==> $version"
 
-    rpm -q ${PHPVER}-php-opcache &>/dev/null || \
-        dnf install -y ${PHPVER}-php-opcache
+    rpm -q ${version}-php-opcache &>/dev/null || \
+        dnf install -y ${version}-php-opcache
 
     echo "$OPCACHE_CONF" > "$INI"
 
