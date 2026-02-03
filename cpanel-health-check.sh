@@ -29,12 +29,19 @@ echo "  IP Principal:     $(hostname -I 2>/dev/null | awk '{print $1}')"
 
 # --- 2. RECURSOS E CARGA (LOAD) ---
 echo -e "\n[2. RECURSOS E CARGA (LOAD)]"
+echo "  --- Load (uptime) ---"
+uptime | sed 's/^/  /'
+echo ""
 echo "  CPU (Núcleos):   $(nproc)"
 echo "  Load Average:    $(cat /proc/loadavg)"
 echo ""
 echo "  --- Memória RAM ---"
 free -h | sed 's/^/  /'
 # Swap em destaque (uso alto = possível degradação de performance)
+echo "  --- Swap (dispositivos) ---"
+if command -v swapon &>/dev/null; then
+  swapon --show 2>/dev/null | sed 's/^/  /'
+fi
 SWAP_USED=$(free -b 2>/dev/null | awk '/^Swap:/{print $3}')
 SWAP_TOTAL=$(free -b 2>/dev/null | awk '/^Swap:/{print $2}')
 if [ -n "$SWAP_TOTAL" ] && [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
@@ -46,7 +53,7 @@ if [ -n "$SWAP_TOTAL" ] && [ "${SWAP_TOTAL:-0}" -gt 0 ]; then
   else
     SWAP_STATUS="OK (sem uso)"
   fi
-  echo "  Swap:            $SWAP_STATUS"
+  echo "  Swap status:     $SWAP_STATUS"
 fi
 echo ""
 echo "  --- Armazenamento (espaço em disco) ---"
@@ -66,9 +73,9 @@ else
   echo "  Status:           OK"
 fi
 echo ""
-echo "  --- I/O de disco (resumo) ---"
+echo "  --- I/O de disco (resumo / top I/O) ---"
 if command -v iostat &>/dev/null; then
-  iostat -x 1 2 2>/dev/null | tail -n +4 | sed 's/^/  /'
+  iostat -x 1 1 2>/dev/null | tail -n +7 | sed 's/^/  /'
 else
   echo "  (iostat não instalado; use: yum install sysstat)"
   vmstat 1 2 2>/dev/null | sed 's/^/  /'
@@ -152,6 +159,9 @@ echo -e "\n[4. CONFIGURAÇÃO E PERFORMANCE PHP-FPM]"
 echo "  Versão PHP (CLI):  $(php -v | head -n 1)"
 echo "  Limites max_children por pool:"
 grep -r "pm.max_children" /opt/cpanel/ea-php*/root/etc/php-fpm.d/ 2>/dev/null | grep -vE '\.(default|example)' | awk -F: '{print "    " $1 " -> " $2}' | sed 's/\/opt\/cpanel\///g'
+echo ""
+echo "  --- Top processos PHP-FPM (pid, tempo, %cpu, %mem, cmd) ---"
+ps -eo pid,etime,%cpu,%mem,cmd 2>/dev/null | grep php-fpm | grep -v grep | sed 's/^/  /'
 
 # --- 5. BANCO DE DADOS (MySQL/MariaDB) ---
 echo -e "\n[5. ESTATÍSTICAS DO BANCO DE DADOS]"
@@ -177,6 +187,9 @@ fi
 
 # --- 6. REDE E CONEXÕES ATIVAS ---
 echo -e "\n[6. CONEXÕES DE REDE]"
+echo "  --- Resumo de sockets (ss -s) ---"
+ss -s 2>/dev/null | sed 's/^/  /'
+echo ""
 echo "  Porta 80 (HTTP):   $(netstat -an 2>/dev/null | grep :80 | grep ESTABLISHED | wc -l) estabelecidas"
 echo "  Porta 443 (HTTPS): $(netstat -an 2>/dev/null | grep :443 | grep ESTABLISHED | wc -l) estabelecidas"
 echo ""
