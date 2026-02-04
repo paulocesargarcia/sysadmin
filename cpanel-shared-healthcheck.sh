@@ -12,10 +12,12 @@
 mkdir -p /root/healthcheck
 REPORT="/root/healthcheck/health_report_$(hostname)_$(date +%Y%m%d_%H%M%S).log"
 
+# Guarda o terminal no fd 3 antes de redirecionar stdout/stderr para o relatório
+exec 3>/dev/tty 2>/dev/null || exec 3>&2
 exec > "$REPORT" 2>&1
 
-# Exibe a etapa atual no terminal (saída vai para o relatório)
-step() { echo ">>> $1" > /dev/tty; }
+# Escreve a etapa no terminal (fd 3)
+step() { echo ">>> $1" >&3; }
 
 echo "============================================================"
 echo "RELATÓRIO DE SAÚDE – SERVIDOR CPANEL (SHARED)"
