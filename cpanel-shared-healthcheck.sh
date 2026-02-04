@@ -3,10 +3,16 @@
 # ============================================================
 # PROMPT PARA ANÁLISE (COPIAR E COLAR JUNTO COM O RELATÓRIO)
 # ============================================================
-# "Analise este relatório de saúde de um servidor cPanel com hospedagem compartilhada.
-# O servidor possui aproximadamente este número de contas informado no relatório.
-# Gere recomendações de tuning para Apache, PHP-FPM, MySQL e SO considerando ambiente
-# shared hosting em produção."
+"""
+  Analise este relatório de saúde de um servidor cPanel com hospedagem compartilhada.
+  O servidor possui aproximadamente este número de contas informado no relatório.
+  Gere recomendações de tuning para Apache, PHP-FPM, MySQL e SO considerando ambiente
+  shared hosting em produção.
+  Justifique as recomendações com base no relatório.
+  Especifique recomendações de tuning (arquivo e valor), software (e versão), hardware (e quantidade), rede, segurança, backup ou monitoramento, incluindo endereço IP quando aplicável.
+  Sempre informe as recomendações de forma clara e objetiva e o arquivo que sera alterado ou criado.
+  Em seguida, informe uma estimativa de clientes simultaneos e de um estimativa de carga de trabalho, de acordo com as melhorias de tuning recomendadas.
+"""
 # ============================================================
 
 mkdir -p /root/healthcheck
