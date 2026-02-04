@@ -24,7 +24,7 @@ echo "RELATÓRIO DE SAÚDE – SERVIDOR CPANEL (SHARED)"
 echo "============================================================"
 
 step "[1] Identificação do sistema"
-echo "\n[1] IDENTIFICAÇÃO DO SISTEMA"
+echo -e "\n[1] IDENTIFICAÇÃO DO SISTEMA"
 hostnamectl
 echo "Data: $(date)"
 uptime
@@ -70,7 +70,7 @@ who -a
 
 # ------------------------------------------------------------
 step "[2] Contas cPanel"
-echo "\n[2] CONTAS CPANEL"
+echo -e "\n[2] CONTAS CPANEL"
 if command -v whmapi1 &>/dev/null; then
   echo "Total de contas (whmapi1):"
   whmapi1 listaccts | grep -c "user:"
@@ -81,13 +81,13 @@ fi
 
 # ------------------------------------------------------------
 step "[3] CPU"
-echo "\n[3] CPU"
+echo -e "\n[3] CPU"
 lscpu
 mpstat -P ALL 1 3
 
 # ------------------------------------------------------------
 step "[4] Memória e swap"
-echo "\n[4] MEMÓRIA E SWAP"
+echo -e "\n[4] MEMÓRIA E SWAP"
 free -h
 vmstat 1 3
 swapon --show
@@ -104,7 +104,7 @@ iostat -x 1 3
 
 # ------------------------------------------------------------
 step "[6] Load"
-echo "\n[6] LOAD"
+echo -e "\n[6] LOAD"
 uptime
 
 # ------------------------------------------------------------
@@ -163,7 +163,7 @@ ps -eo pid,%cpu,%mem,cmd | grep mariadbd | grep -v grep
 
 # ------------------------------------------------------------
 step "[11] Top processos gerais"
-echo "\n[11] TOP PROCESSOS GERAIS"
+echo -e "\n[11] TOP PROCESSOS GERAIS"
 ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head
 
 # ------------------------------------------------------------
@@ -189,7 +189,7 @@ sysctl net.ipv4.tcp_tw_reuse
 
 # ------------------------------------------------------------
 step "Fim do relatório / Enviando para tmptext.com..."
-echo "\nFIM DO RELATÓRIO"
+echo -e "\nFIM DO RELATÓRIO"
 echo "Arquivo gerado em: $REPORT"
 
 echo "Enviando relatório para o tmptext.com..."
