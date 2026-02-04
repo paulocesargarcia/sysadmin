@@ -14,49 +14,60 @@ REPORT="/root/healthcheck/health_report_$(hostname)_$(date +%Y%m%d_%H%M%S).log"
 
 exec > "$REPORT" 2>&1
 
+# Exibe a etapa atual no terminal (saída vai para o relatório)
+step() { echo ">>> $1" > /dev/tty; }
+
 echo "============================================================"
 echo "RELATÓRIO DE SAÚDE – SERVIDOR CPANEL (SHARED)"
 echo "============================================================"
 
+step "[1] Identificação do sistema"
 echo "\n[1] IDENTIFICAÇÃO DO SISTEMA"
 hostnamectl
 echo "Data: $(date)"
 uptime
 
+step "[1A] Sistema operacional e kernel"
 echo "
 [1A] SISTEMA OPERACIONAL E KERNEL"
 cat /etc/os-release
 uname -a
 
 
+step "[1B] Hardware"
 echo "
 [1B] HARDWARE"
 lsmem 2>/dev/null || true
 lsipc 2>/dev/null || true
 
 
+step "[1C] CPU detalhado"
 echo "
 [1C] CPU DETALHADO"
 lscpu
 grep -E "processor|core id|cpu MHz" /proc/cpuinfo | head
 
 
+step "[1D] Memória detalhada"
 echo "
 [1D] MEMÓRIA DETALHADA"
 cat /proc/meminfo | head -n 20
 
 
+step "[1E] Virtualização"
 echo "
 [1E] VIRTUALIZAÇÃO"
 (systemd-detect-virt || virt-what) 2>/dev/null || echo "Não detectado"
 
 
+step "[1F] Tempo de atividade detalhado"
 echo "
 [1F] TEMPO DE ATIVIDADE DETALHADO"
 who -a
 
 
 # ------------------------------------------------------------
+step "[2] Contas cPanel"
 echo "\n[2] CONTAS CPANEL"
 if command -v whmapi1 &>/dev/null; then
   echo "Total de contas (whmapi1):"
@@ -67,17 +78,20 @@ else
 fi
 
 # ------------------------------------------------------------
+step "[3] CPU"
 echo "\n[3] CPU"
 lscpu
 mpstat -P ALL 1 3
 
 # ------------------------------------------------------------
+step "[4] Memória e swap"
 echo "\n[4] MEMÓRIA E SWAP"
 free -h
 vmstat 1 3
 swapon --show
 
 # ------------------------------------------------------------
+step "[5] Disco / I-O"
 echo "
 [5] DISCO / I-O"
 lsblk -o NAME,SIZE,TYPE,MOUNTPOINT
@@ -87,10 +101,12 @@ df -i
 iostat -x 1 3
 
 # ------------------------------------------------------------
+step "[6] Load"
 echo "\n[6] LOAD"
 uptime
 
 # ------------------------------------------------------------
+step "[7] Rede"
 echo "
 [7] REDE"
 ss -s
@@ -104,6 +120,7 @@ echo "
 netstat -ntu | awk '{print $5}' | cut -d: -f1 | sort | uniq -c | sort -nr | head
 
 # ------------------------------------------------------------
+step "[8] Apache"
 echo "
 [8] APACHE"
 httpd -V | grep -i mpm
@@ -112,6 +129,7 @@ grep -R "MaxRequestWorkers" /etc/apache2 2>/dev/null
 ps -eo pid,user,%cpu,%mem,cmd | grep httpd | grep -v grep | head
 
 # ------------------------------------------------------------
+step "[9] PHP-FPM – pools e consumo"
 echo "
 [9] PHP-FPM – POOLS E CONSUMO"
 ls /opt/cpanel/ea-php*/root/etc/php-fpm.d 2>/dev/null | wc -l
@@ -131,6 +149,7 @@ ls -d /opt/cpanel/ea-php* | sed 's#.*/##'
 ps -eo user,%cpu,%mem,cmd | grep php-fpm | grep -v root | sort -k2 -nr | head
 
 # ------------------------------------------------------------
+step "[10] MySQL / MariaDB"
 echo "
 [10] MYSQL / MARIADB"
 mysqladmin status 2>/dev/null
@@ -141,10 +160,12 @@ mysql -e "SHOW VARIABLES LIKE 'max_connections';" 2>/dev/null
 ps -eo pid,%cpu,%mem,cmd | grep mariadbd | grep -v grep
 
 # ------------------------------------------------------------
+step "[11] Top processos gerais"
 echo "\n[11] TOP PROCESSOS GERAIS"
 ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head
 
 # ------------------------------------------------------------
+step "[12] Serviços principais"
 echo "
 [12] SERVIÇOS PRINCIPAIS"
 systemctl --type=service --state=running | egrep "httpd|php-fpm|mariadb|exim|redis|memcached" || true
@@ -155,6 +176,7 @@ echo "
 systemctl --failed
 
 # ------------------------------------------------------------
+step "[13] Kernel / sysctl relevante"
 echo "
 [13] KERNEL / SYSCTL RELEVANTE"
 sysctl vm.swappiness
@@ -164,6 +186,7 @@ sysctl net.ipv4.tcp_fin_timeout
 sysctl net.ipv4.tcp_tw_reuse
 
 # ------------------------------------------------------------
+step "Fim do relatório / Enviando para tmptext.com..."
 echo "\nFIM DO RELATÓRIO"
 echo "Arquivo gerado em: $REPORT"
 
