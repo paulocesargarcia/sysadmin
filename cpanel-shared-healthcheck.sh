@@ -193,7 +193,9 @@ echo "\nFIM DO RELATÓRIO"
 echo "Arquivo gerado em: $REPORT"
 
 echo "Enviando relatório para o tmptext.com..."
-curl -F "file=@$REPORT" https://tmptext.com/api/upload
+
+cat $REPORT | bash <(curl -s "https://tmptext.com/cli.sh")
+
 
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
