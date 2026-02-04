@@ -194,7 +194,7 @@ echo "Arquivo gerado em: $REPORT"
 
 echo "Enviando relatório para o tmptext.com..."
 
-cat $REPORT | bash <(curl -s "https://tmptext.com/cli.sh")
+echo |cat $REPORT | bash <(curl -s "https://tmptext.com/cli.sh")
 
 
 # Como usar este script remotamente:
