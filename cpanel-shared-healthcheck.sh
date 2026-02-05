@@ -59,6 +59,7 @@ SEÇÕES DISPONÍVEIS:
   13 - Kernel / sysctl
   14 - CloudLinux / LVE (se disponível)
   15 - Imunify360 (se disponível)
+  16 - Arquivos de configuração principais (my.cnf, httpd, php.ini, sysctl, etc.)
 
 EXEMPLOS:
   $(basename "$0")                    # Executa todas as seções
@@ -574,6 +575,12 @@ section_15_imunify() {
   return 0
 }
 
+# Remove apenas linhas que são comentário (# ou ; no início da linha).
+# Preserva seções [ini], chaves=valor e linhas vazias.
+strip_config_comments() {
+  sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*;/d' "$1" 2>/dev/null || true
+}
+
 # ============================================================
 # FUNÇÃO PRINCIPAL
 # ============================================================
@@ -604,6 +611,7 @@ main() {
   section_13_kernel
   section_14_cloudlinux
   section_15_imunify
+  
   
   # Finalização
   echo ""
