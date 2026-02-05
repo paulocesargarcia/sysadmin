@@ -5,7 +5,7 @@
 # Gera relatório completo de saúde do servidor
 # ============================================================
 
-set -euo pipefail
+set -uo pipefail
 
 # ============================================================
 # PROMPT PARA ANÁLISE (COPIAR E COLAR JUNTO COM O RELATÓRIO)
@@ -111,10 +111,9 @@ check_cpanel() {
 
 cleanup() {
   local exit_code=$?
-  if [[ $exit_code -ne 0 ]]; then
-    echo "Script interrompido. Relatório parcial salvo em: $REPORT" >&3
+  if [[ $exit_code -ne 0 ]] && [[ -n "${REPORT:-}" ]]; then
+    echo "Script interrompido. Relatório parcial salvo em: $REPORT" >&3 2>/dev/null || true
   fi
-  exit "$exit_code"
 }
 
 # Guarda o terminal no fd 3 antes de redirecionar stdout/stderr para o relatório
@@ -246,6 +245,8 @@ section_01_system_identification() {
   echo ""
   echo "[1F] TEMPO DE ATIVIDADE DETALHADO"
   who -a 2>/dev/null || w
+  
+  return 0
 }
 
 section_02_cpanel_accounts() {
@@ -264,7 +265,9 @@ section_02_cpanel_accounts() {
   
   echo ""
   echo "Contas suspensas:"
-  grep -l "SUSPENDED=1" /var/cpanel/users/* 2>/dev/null | wc -l
+  grep -l "SUSPENDED=1" /var/cpanel/users/* 2>/dev/null | wc -l || echo "0"
+  
+  return 0
 }
 
 section_03_cpu() {
@@ -273,15 +276,18 @@ section_03_cpu() {
   step "[3] CPU"
   section_header "3" "CPU"
   
-  lscpu
+  lscpu || echo "Erro ao executar lscpu"
   
   if command -v mpstat &>/dev/null; then
     echo ""
     echo "Estatísticas por CPU (3 amostras):"
-    mpstat -P ALL 1 3
+    mpstat -P ALL 1 3 || echo "Erro ao executar mpstat"
   else
+    echo ""
     echo "mpstat não disponível (instale sysstat)"
   fi
+  
+  return 0
 }
 
 section_04_memory() {
@@ -290,15 +296,17 @@ section_04_memory() {
   step "[4] Memória e swap"
   section_header "4" "MEMÓRIA E SWAP"
   
-  free -h
+  free -h || echo "Erro ao executar free"
   
   echo ""
   echo "Estatísticas vmstat (3 amostras):"
-  vmstat 1 3
+  vmstat 1 3 || echo "Erro ao executar vmstat"
   
   echo ""
   echo "Swap ativo:"
   swapon --show 2>/dev/null || echo "Nenhum swap ativo"
+  
+  return 0
 }
 
 section_05_disk() {
@@ -316,20 +324,22 @@ section_05_disk() {
   
   echo ""
   echo "Uso de disco por filesystem:"
-  df -hT
+  df -hT || echo "Erro ao executar df"
   
   echo ""
   echo "Uso de inodes:"
-  df -i
+  df -i || echo "Erro ao executar df -i"
   
   if command -v iostat &>/dev/null; then
     echo ""
     echo "Estatísticas I/O (3 amostras):"
-    iostat -x 1 3
+    iostat -x 1 3 || echo "Erro ao executar iostat"
   else
     echo ""
     echo "iostat não disponível (instale sysstat)"
   fi
+  
+  return 0
 }
 
 section_06_load() {
@@ -342,7 +352,9 @@ section_06_load() {
   
   echo ""
   echo "Processos em execução vs total:"
-  ps aux | wc -l
+  ps aux | wc -l || echo "Erro ao contar processos"
+  
+  return 0
 }
 
 section_07_network() {
@@ -352,15 +364,15 @@ section_07_network() {
   section_header "7" "REDE"
   
   echo "Resumo de sockets:"
-  ss -s
+  ss -s || echo "Erro ao executar ss"
   
   echo ""
   echo "Endereços IP:"
-  ip addr show
+  ip addr show || echo "Erro ao executar ip addr"
   
   echo ""
   echo "Rotas:"
-  ip route
+  ip route || echo "Erro ao executar ip route"
   
   if command -v sar &>/dev/null; then
     echo ""
@@ -370,7 +382,9 @@ section_07_network() {
   
   echo ""
   echo "[7A] TOP 10 IPs CONECTADOS"
-  ss -tn | awk 'NR>1 {print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | head -10
+  ss -tn 2>/dev/null | awk 'NR>1 {print $5}' | cut -d: -f1 | sort | uniq -c | sort -rn | head -10 || echo "Nenhuma conexão encontrada"
+  
+  return 0
 }
 
 section_08_apache() {
@@ -393,10 +407,12 @@ section_08_apache() {
     
     echo ""
     echo "Top 10 processos Apache:"
-    ps -eo pid,user,%cpu,%mem,cmd | grep -E "httpd|apache2" | grep -v grep | head -10
+    ps -eo pid,user,%cpu,%mem,cmd | grep -E "httpd|apache2" | grep -v grep | head -10 || echo "Nenhum processo encontrado"
   else
     echo "Apache não encontrado"
   fi
+  
+  return 0
 }
 
 section_09_phpfpm() {
@@ -419,10 +435,12 @@ section_09_phpfpm() {
     
     echo ""
     echo "Top 10 processos PHP-FPM por CPU:"
-    ps -eo user,%cpu,%mem,cmd | grep php-fpm | grep -v root | sort -k2 -rn | head -10
+    ps -eo user,%cpu,%mem,cmd | grep php-fpm | grep -v root | sort -k2 -rn | head -10 || echo "Nenhum processo encontrado"
   else
     echo "PHP-FPM (EA) não encontrado"
   fi
+  
+  return 0
 }
 
 section_10_mysql() {
@@ -453,10 +471,12 @@ section_10_mysql() {
     
     echo ""
     echo "Processos MySQL/MariaDB:"
-    ps -eo pid,%cpu,%mem,cmd | grep -E "mysqld|mariadbd" | grep -v grep
+    ps -eo pid,%cpu,%mem,cmd | grep -E "mysqld|mariadbd" | grep -v grep || echo "Nenhum processo encontrado"
   else
     echo "MySQL/MariaDB não encontrado"
   fi
+  
+  return 0
 }
 
 section_11_top_processes() {
@@ -466,11 +486,13 @@ section_11_top_processes() {
   section_header "11" "TOP PROCESSOS GERAIS"
   
   echo "Top 15 processos por CPU:"
-  ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head -16
+  ps -eo pid,user,%cpu,%mem,cmd --sort=-%cpu | head -16 || echo "Erro ao listar processos"
   
   echo ""
   echo "Top 15 processos por Memória:"
-  ps -eo pid,user,%cpu,%mem,cmd --sort=-%mem | head -16
+  ps -eo pid,user,%cpu,%mem,cmd --sort=-%mem | head -16 || echo "Erro ao listar processos"
+  
+  return 0
 }
 
 section_12_services() {
@@ -485,6 +507,8 @@ section_12_services() {
   echo ""
   echo "[12A] SERVIÇOS FALHOS"
   systemctl --failed 2>/dev/null || echo "systemctl não disponível"
+  
+  return 0
 }
 
 section_13_kernel() {
@@ -500,6 +524,8 @@ section_13_kernel() {
   sysctl net.ipv4.tcp_fin_timeout 2>/dev/null || echo "net.ipv4.tcp_fin_timeout: N/A"
   sysctl net.ipv4.tcp_tw_reuse 2>/dev/null || echo "net.ipv4.tcp_tw_reuse: N/A"
   sysctl net.ipv4.ip_local_port_range 2>/dev/null || echo "net.ipv4.ip_local_port_range: N/A"
+  
+  return 0
 }
 
 section_14_cloudlinux() {
@@ -521,6 +547,8 @@ section_14_cloudlinux() {
   else
     echo "CloudLinux não detectado"
   fi
+  
+  return 0
 }
 
 section_15_imunify() {
@@ -542,6 +570,8 @@ section_15_imunify() {
   else
     echo "Imunify360 não instalado"
   fi
+  
+  return 0
 }
 
 # ============================================================
