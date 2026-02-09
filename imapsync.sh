@@ -22,9 +22,11 @@ if [ ! -f "$CONF" ]; then
 cat <<EOF > "$CONF"
 [origem]
 host=mail.origem.com
+# ssl=yes   -> IMAPS (porta 993). Omitir ou ssl=no -> STARTTLS (porta 143)
 
 [destino]
 host=mail.destino.com
+# ssl=yes   -> IMAPS (porta 993). Omitir ou ssl=no -> STARTTLS (porta 143)
 
 [email]
 usuario@dominio.com,senha
@@ -33,8 +35,16 @@ EOF
     exit 0
 fi
 
-ORIGEM=$(awk -F= '/^\[origem\]/{f=1} f&&/host=/{print $2;f=0}' "$CONF")
-DESTINO=$(awk -F= '/^\[destino\]/{f=1} f&&/host=/{print $2;f=0}' "$CONF")
+ORIGEM=$(awk -F= '/^\[origem\]/{f=1} f&&/^host=/{print $2;f=0}' "$CONF")
+DESTINO=$(awk -F= '/^\[destino\]/{f=1} f&&/^host=/{print $2;f=0}' "$CONF")
+ORIGEM_SSL=$(awk -F= '/^\[origem\]/{f=1} f&&/^ssl=/{print $2;f=0}' "$CONF")
+DESTINO_SSL=$(awk -F= '/^\[destino\]/{f=1} f&&/^ssl=/{print $2;f=0}' "$CONF")
+
+# SSL/TLS por host: ssl=yes -> --ssl (porta 993), omitido ou ssl=no -> --tls (porta 143)
+SSL1="--tls1"
+[ "$ORIGEM_SSL" = "yes" ] && SSL1="--ssl1"
+SSL2="--ssl2"
+[ "$DESTINO_SSL" = "no" ] && SSL2="--tls2"
 
 awk '
 /^\[email\]/{f=1;next}
@@ -56,7 +66,7 @@ do
             --host1 "$ORIGEM" --user1 "$email" --password1 "$senha" \
             --host2 "$DESTINO" --user2 "$email" --password2 "$senha" \
             --nofoldersizes --addheader --skipsize \
-            --syncinternaldates --tls1 --ssl2
+            --syncinternaldates $SSL1 $SSL2
     fi
 done
 
