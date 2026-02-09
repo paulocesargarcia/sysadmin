@@ -32,6 +32,7 @@ Processos Apache | ps aux | grep httpd | grep -v grep
 Versão PHP CLI | php -v
 Versões PHP instaladas | whmapi1 php_get_installed_versions
 PHP padrão | whmapi1 php_get_system_default_version
+Pools PHP-FPM | ls -d /opt/cpanel/ea-php*/root/etc/php-fpm.d/ | grep -R "pm.max_children\|pm.start_servers\|pm.min_spare_servers\|pm.max_spare_servers\|memory_limit" /opt/cpanel/ea-php*/root/etc/php-fpm.d/*.conf
 memory_limit PHP | grep -R "memory_limit" /opt/cpanel/ea-php*/root/etc/php.ini
 post_max_size PHP | grep -R "post_max_size" /opt/cpanel/ea-php*/root/etc/php.ini
 upload_max_filesize PHP | grep -R "upload_max_filesize" /opt/cpanel/ea-php*/root/etc/php.ini
@@ -47,6 +48,7 @@ Threads e queries | mysqladmin processlist
 Status resumido MySQL | mysqladmin status
 Config MySQL (essencial) | mysql -e "SHOW VARIABLES WHERE Variable_name IN ('innodb_buffer_pool_size','innodb_buffer_pool_instances','innodb_log_file_size','innodb_flush_log_at_trx_commit','max_connections','thread_cache_size');" 2>/dev/null || echo "MySQL indisponível"
 Status MySQL (essencial) | mysql -e "SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Threads_running','Max_used_connections','Innodb_buffer_pool_reads','Innodb_buffer_pool_read_requests');" 2>/dev/null || echo "MySQL indisponível"
+Parâmetros MySQL | egrep 'innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size' /etc/my.cnf /etc/my.cnf.d/*.cnf
 Conexões de rede | ss -s
 Portas abertas | ss -lntup
 Total de contas cPanel | whmapi1 listaccts |grep user| wc -l
@@ -55,6 +57,12 @@ Uso LVE (CloudLinux) | lveinfo
 Erro Apache | tail -n 50 /usr/local/apache/logs/error_log
 Erro cPanel | tail -n 50 /usr/local/cpanel/logs/error_log
 Mensagens kernel | dmesg | tail -n 50
+Parâmetros MariaDB | grep -R "innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size" /etc/my.cnf /etc/my.cnf.d/*.cnf
+Global PHP-FPM defaults | grep -E "pm_max_children|pm_max_requests|pm_process_idle_timeout" /var/cpanel/ApachePHPFPM/system_pool_defaults.yaml
+Apache workers | egrep 'MaxRequestWorkers|ServerLimit|ThreadsPerChild' /etc/apache2/conf/httpd.conf
+LimitNOFILE Apache | grep -R "LimitNOFILE" /etc/systemd/system /usr/lib/systemd/system/httpd.service
+LVE defaults | lvectl list-defaults
+Config Imunify360 | imunify360-agent config show
 EOF
 
 echo "Relatório de Tuning - $(date)" > "$RELATORIO"
