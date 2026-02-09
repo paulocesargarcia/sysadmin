@@ -3,7 +3,8 @@ set -euo pipefail
 
 RELATORIO="healthcheck_$(hostname)_$(date +%Y%m%d_%H%M%S).txt"
 
-read -r -d '' COMANDOS <<'EOF'
+# read -d '' retorna 1 ao encontrar EOF (sem NUL); com set -e o script sairia aqui
+read -r -d '' COMANDOS <<'EOF' || true
 Hostname | hostname
 Versão do kernel | uname -a
 Sistema operacional | cat /etc/os-release
@@ -68,8 +69,8 @@ done <<< "$COMANDOS"
 
 echo "Relatório gerado em $RELATORIO"
 
-# Upload para tmptext.com
-cat "$RELATORIO" | bash <(curl -s "https://tmptext.com/cli.sh") | tee /dev/tty
+# Upload para tmptext.com (falha de rede não interrompe o script)
+cat "$RELATORIO" | bash <(curl -s "https://tmptext.com/cli.sh") | tee /dev/tty || echo "Upload opcional falhou; relatório local em $RELATORIO"
 
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
