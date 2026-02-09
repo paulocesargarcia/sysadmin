@@ -37,8 +37,8 @@ fi
 
 ORIGEM=$(awk -F= '/^\[origem\]/{f=1} f&&/^host=/{print $2;f=0}' "$CONF")
 DESTINO=$(awk -F= '/^\[destino\]/{f=1} f&&/^host=/{print $2;f=0}' "$CONF")
-ORIGEM_SSL=$(awk -F= '/^\[origem\]/{f=1} f&&/^ssl=/{print $2;f=0}' "$CONF")
-DESTINO_SSL=$(awk -F= '/^\[destino\]/{f=1} f&&/^ssl=/{print $2;f=0}' "$CONF")
+ORIGEM_SSL=$(awk -F= '/^\[origem\]/{f=1} f&&/^ssl=/{gsub(/^[ \t]+|[ \t]+$/,"",$2);print $2;f=0}' "$CONF")
+DESTINO_SSL=$(awk -F= '/^\[destino\]/{f=1} f&&/^ssl=/{gsub(/^[ \t]+|[ \t]+$/,"",$2);print $2;f=0}' "$CONF")
 
 # SSL/TLS por host: ssl=yes -> --ssl (porta 993), omitido ou ssl=no -> --tls (porta 143)
 SSL1="--tls1"
