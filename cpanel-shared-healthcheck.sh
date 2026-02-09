@@ -54,15 +54,15 @@ Portas abertas | ss -lntup
 Total de contas cPanel | whmapi1 listaccts |grep user| wc -l
 Load average | cat /proc/loadavg
 Uso LVE (CloudLinux) | lveinfo 
-Erro Apache | tail -n 50 /usr/local/apache/logs/error_log
-Erro cPanel | tail -n 50 /usr/local/cpanel/logs/error_log
-Mensagens kernel | dmesg | tail -n 50
 Parâmetros MariaDB | grep -R "innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size" /etc/my.cnf /etc/my.cnf.d/*.cnf
 Global PHP-FPM defaults | grep -E "pm_max_children|pm_max_requests|pm_process_idle_timeout" /var/cpanel/ApachePHPFPM/system_pool_defaults.yaml
 Apache workers | egrep 'MaxRequestWorkers|ServerLimit|ThreadsPerChild' /etc/apache2/conf/httpd.conf
 LimitNOFILE Apache | grep -R "LimitNOFILE" /etc/systemd/system /usr/lib/systemd/system/httpd.service
 LVE defaults | lvectl list-defaults
 Config Imunify360 | imunify360-agent config show
+Erro Apache | tail -n 50 /usr/local/apache/logs/error_log
+Erro cPanel | tail -n 50 /usr/local/cpanel/logs/error_log
+Mensagens kernel | dmesg | tail -n 50
 EOF
 
 echo "Relatório de Tuning - $(date)" > "$RELATORIO"
