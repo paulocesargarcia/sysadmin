@@ -55,7 +55,7 @@ do
         imapsync \
             --host1 "$ORIGEM" --user1 "$email" --password1 "$senha" \
             --host2 "$DESTINO" --user2 "$email" --password2 "$senha" \
-            --nofoldersizes --addheader --skipsize --fast \
+            --nofoldersizes --addheader --skipsize \
             --syncinternaldates --tls1 --ssl2
     fi
 done
