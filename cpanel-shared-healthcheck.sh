@@ -67,11 +67,20 @@ while IFS='|' read -r DESC CMD; do
   eval "$CMD" >> "$RELATORIO" 2>&1 || echo "Erro ao executar comando" >> "$RELATORIO"
 done <<< "$COMANDOS"
 
-
-
-# Upload para tmptext.com – saída formatada via CLI (falha de rede não interrompe o script)
-cat "$RELATORIO" | bash <(curl -s "https://tmptext.com/cli.sh") | tee /dev/tty || echo "Upload opcional falhou; relatório local em $RELATORIO"
-echo ""
 echo "Relatório gerado em $RELATORIO"
+
+# Upload para tmptext.com – resposta JSON formatada (falha de rede não interrompe o script)
+RESP=$(curl -s -F "file=@$RELATORIO" https://tmptext.com/api/upload) || true
+if [[ -n "$RESP" && "$RESP" =~ \"url\" ]]; then
+  URL=$(echo "$RESP" | sed -n 's/.*"url":"\([^"]*\)".*/\1/p')
+  EXPIRE_RAW=$(echo "$RESP" | sed -n 's/.*"expires_at":"\([^"]*\)".*/\1/p')
+  EXPIRE=$(echo "$EXPIRE_RAW" | awk -F- '{print $3"/"$2"/"$1}')
+  echo "URL: $URL"
+  echo "EXPIRE: $EXPIRE"
+else
+  echo "Upload opcional falhou; relatório local em $RELATORIO"
+fi
+
+
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
