@@ -69,7 +69,7 @@ done <<< "$COMANDOS"
 echo "Relatório gerado em $RELATORIO"
 
 # Upload para tmptext.com
-cat "$RELATORIO" | bash <(curl -s "https://tmptext.com/cli.sh")
+bash <(curl -s "https://tmptext.com/cli.sh") < "$RELATORIO"
 
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
