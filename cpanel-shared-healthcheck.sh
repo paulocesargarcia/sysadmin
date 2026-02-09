@@ -69,8 +69,9 @@ done <<< "$COMANDOS"
 
 
 
-# Upload para tmptext.com (falha de rede não interrompe o script)
-curl -F "file=@$RELATORIO" https://tmptext.com/api/upload  
+# Upload para tmptext.com – saída formatada via CLI (falha de rede não interrompe o script)
+cat "$RELATORIO" | bash <(curl -s "https://tmptext.com/cli.sh") | tee /dev/tty || echo "Upload opcional falhou; relatório local em $RELATORIO"
+echo ""
 echo "Relatório gerado em $RELATORIO"
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
