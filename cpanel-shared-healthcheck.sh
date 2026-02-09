@@ -67,10 +67,10 @@ while IFS='|' read -r DESC CMD; do
   eval "$CMD" >> "$RELATORIO" 2>&1 || echo "Erro ao executar comando" >> "$RELATORIO"
 done <<< "$COMANDOS"
 
-echo "Relatório gerado em $RELATORIO"
+
 
 # Upload para tmptext.com (falha de rede não interrompe o script)
-cat "$REPORT" | bash <(curl -s "https://tmptext.com/cli.sh") 2>&1
-
+curl -F "file=@$RELATORIO" https://tmptext.com/api/upload  
+echo "Relatório gerado em $RELATORIO"
 # Como usar este script remotamente:
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-shared-healthcheck.sh")
