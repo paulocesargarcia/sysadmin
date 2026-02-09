@@ -25,9 +25,7 @@ Parâmetros kernel críticos | sysctl vm.swappiness fs.file-max net.core.somaxco
 Limites do sistema | ulimit -a
 Versão do Apache | httpd -v
 MPM e módulos Apache | apachectl -M
-Vhosts ativos | apachectl -S
 MPM Apache | httpd -V | grep -i mpm
-MaxRequestWorkers | grep -R "MaxRequestWorkers" /usr/local/apache/conf
 Processos Apache | ps aux | grep httpd | grep -v grep
 Versão PHP CLI | php -v
 Versões PHP instaladas | whmapi1 php_get_installed_versions
