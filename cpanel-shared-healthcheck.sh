@@ -1,6 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# ============================================================
+# PROMPT PARA ANÁLISE (COPIAR E COLAR JUNTO COM O RELATÓRIO)
+# ============================================================
+PROMPT_ANALISE="
+CONTEXTO E REGRAS:
+- Analise este relatório de saúde de um servidor cPanel com hospedagem compartilhada em produção.
+- Baseie-se EXCLUSIVAMENTE nos dados e métricas deste relatório; não invente números nem valores que não constem no relatório ou nos arquivos de configuração fornecidos.
+- O número aproximado de contas cPanel está informado no relatório; use-o como referência.
+
+VERSÕES E COMPATIBILIDADE (obrigatório):
+- Sempre analise e considere as versões informadas no relatório: sistema operacional, distribuição (ex.: AlmaLinux, CloudLinux), versão do cPanel/WHM, Apache, PHP, MySQL/MariaDB e demais software relevantes.
+- Recomende sempre considerando as versões mais recentes estáveis compatíveis com o ambiente; não sugira comandos, sintaxe ou opções que não se apliquem à versão do SO, distribuição ou software indicada no relatório.
+- Não indique comandos obsoletos ou deprecados para a versão em uso (ex.: evite netstat se o ambiente usar ss; use sintaxe de systemctl e não service quando aplicável à distro do relatório).
+
+COMANDOS A SEREM EXECUTADOS:
+- Quando precisar sugerir a execução de comandos (verificação, aplicação de tuning, reinício de serviço), informe cada comando de forma clara, em linha separada, em bloco de código, para copiar e colar.
+- Indique em qual contexto executar (ex.: como root, em qual diretório) quando relevante.
+
+ANTES DE RECOMENDAR ALTERAÇÕES:
+- Se for sugerir a alteração de um parâmetro e o valor atual NÃO estiver disponível no relatório nem nos arquivos de configuração anexados, SOLICITE ao usuário que informe o valor atual antes de recomendar o novo valor.
+- Peça que o usuário anexe ou cole o conteúdo dos arquivos de configuração relevantes (ex.: my.cnf, httpd.conf, php.ini, sysctl.conf, pools PHP-FPM) para que você tenha o máximo de elementos e possa recomendar com precisão. Indique claramente quais arquivos são necessários quando faltarem dados.
+
+ESTRUTURA DA RESPOSTA (obrigatória):
+1. Diagnóstico – resumo do estado atual com base nos dados do relatório.
+2. Recomendações de tuning – Apache, PHP-FPM, MySQL e SO, em ordem de prioridade: Crítico | Importante | Desejável.
+3. Segurança, backup e monitoramento – incluindo endereço IP do servidor ou de endpoints (firewall, monitoramento) quando aplicável.
+4. Estimativa de capacidade – clientes simultâneos e carga de trabalho esperada após as melhorias (quando aplicável).
+5. Inclua recomendações de LVE (CloudLinux) e Imunify360 quando os dados estiverem no relatório.
+
+FORMATO DAS ALTERAÇÕES DE PARÂMETROS:
+Para cada alteração sugerida, apresente em TABELA com três colunas obrigatórias:
+| Parâmetro (arquivo) | Valor atual | Valor novo | Justificativa |
+Use a coluna \"Valor atual\" com o valor lido do relatório ou dos arquivos enviados; se não tiver o valor, escreva \"SOLICITAR AO USUÁRIO\" e peça o valor antes de preencher \"Valor novo\".
+
+Recomendações de tuning devem especificar: arquivo (caminho completo), parâmetro, valor novo, e justificativa baseada no relatório. Para software, informe nome e versão; para hardware, quantidade e tipo; para rede e segurança, detalhe conforme os dados disponíveis.
+"
+
 RELATORIO="healthcheck_$(hostname)_$(date +%Y%m%d_%H%M%S).txt"
 
 # read -d '' retorna 1 ao encontrar EOF (sem NUL); com set -e o script sairia aqui
