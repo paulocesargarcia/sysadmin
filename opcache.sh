@@ -39,7 +39,7 @@ case "$1" in
     --test)
         echo -e "\n1. Arquivos de Configuração Encontrados (Possíveis Conflitos):"
         echo "------------------------------------------------------------"
-        find /opt/cpanel/ea-php*/root/etc/php.d/ -name "*opcache*"
+        find /opt/cpanel/ea-php*/root/etc/php.d/ -name "*opcache.ini"
         
         echo -e "\n2. Status de Execução PHP:"
         echo "------------------------------------------------------------"
