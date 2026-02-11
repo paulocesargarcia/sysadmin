@@ -28,7 +28,7 @@ case "$1" in
             echo "$OPC_CONFIG" > "$INI_PATH"
             chmod 644 "$INI_PATH"
         done
-        echo "Reiniciando serviços..."
+        echo "Reiniciando serviços globalmente..."
         pkill -9 php-fpm >/dev/null 2>&1
         /scripts/restartsrv_httpd --quiet
         /scripts/restartsrv_apache_php_fpm --quiet
@@ -37,35 +37,37 @@ case "$1" in
         ;;
 
     --test)
-        echo -e "\n1. Arquivos de Configuração Encontrados (Possíveis Conflitos):"
+        echo -e "\n1. Arquivos de Configuração Encontrados:"
         echo "------------------------------------------------------------"
         find /opt/cpanel/ea-php*/root/etc/php.d/ -name "*opcache.ini"
         
-        echo -e "\n2. Status de Execução PHP:"
+        echo -e "\n2. Status de Execução PHP (Teste Unitário CLI):"
         echo "------------------------------------------------------------"
-        printf "%-15s | %-12s | %-10s | %-10s\n" "Versão PHP" "Status" "Mem. Usada" "Arquivos"
+        printf "%-15s | %-12s | %-10s | %-10s\n" "Versão PHP" "Status" "Mem. Total" "Max Files"
         echo "------------------------------------------------------------"
         for phpbin in /usr/local/bin/ea-php[0-9][0-9]; do
             if [ -f "$phpbin" ]; then
                 NAME=$(basename $phpbin)
+                # Obtemos as configurações aplicadas em vez do status volátil do processo
                 DATA=$($phpbin -d opcache.enable_cli=1 -r "
                     \$s = opcache_get_status(false);
-                    if(\$s && \$s['opcache_enabled']) {
-                        echo 'OK|' . round(\$s['memory_usage']['used_memory']/1024/1024,1) . 'MB|' . \$s['opcache_statistics']['num_cached_keys'];
+                    if(\$s) {
+                        echo 'OK|' . round(\$s['memory_usage']['free_memory'] / 1024 / 1024 + \$s['memory_usage']['used_memory'] / 1024 / 1024) . 'MB|' . ini_get('opcache.max_accelerated_files');
                     } else { echo 'OFF|---|---'; }
                 " 2>/dev/null)
                 
                 STATUS=$(echo $DATA | cut -d'|' -f1)
                 MEM=$(echo $DATA | cut -d'|' -f2)
-                KEYS=$(echo $DATA | cut -d'|' -f3)
+                MAXF=$(echo $DATA | cut -d'|' -f3)
 
                 if [ "$STATUS" == "OK" ]; then
-                    printf "%-15s | \e[32m%-12s\e[0m | %-10s | %-10s\n" "$NAME" "ATIVO" "$MEM" "$KEYS"
+                    printf "%-15s | \e[32m%-12s\e[0m | %-10s | %-10s\n" "$NAME" "ATIVO" "$MEM" "$MAXF"
                 else
                     printf "%-15s | \e[31m%-12s\e[0m | %-10s | %-10s\n" "$NAME" "INATIVO" "---" "---"
                 fi
             fi
         done
+        echo -e "\nNota: O contador de arquivos em uso deve ser monitorado via Web/FPM Status."
         ;;
     *)
         echo "Uso: $0 {--install|--test}"
