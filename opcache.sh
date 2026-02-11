@@ -1,7 +1,6 @@
 #!/bin/bash
 
-# Template do 10-opcache.ini para Hosting Compartilhado
-# A zend_extension DEVE ser a primeira linha sem comentários
+# Template do 10-opcache.ini
 OPC_CONFIG="zend_extension=opcache.so
 [opcache]
 opcache.enable=1
@@ -24,28 +23,30 @@ case "$1" in
         echo "Iniciando instalação e configuração..."
         for VER in $PHP_VERSIONS; do
             echo "-> Configurando $VER"
-            # Tenta instalar caso o pacote tenha falhado anteriormente
             dnf install -y ${VER}-php-opcache >/dev/null 2>&1
             
             INI_PATH="/opt/cpanel/${VER}/root/etc/php.d/10-opcache.ini"
-            
-            # Escreve o template
             echo "$OPC_CONFIG" > "$INI_PATH"
             chmod 644 "$INI_PATH"
         done
         
-        # Reinicialização forçada para limpar cache de processos FPM
-        /scripts/restartsrv_httpd >/dev/null
-        pkill -9 php-fpm
-        /scripts/restartsrv_apache_php_fpm >/dev/null
+        # --- REINICIALIZAÇÃO ÚNICA AO FINAL ---
+        echo "Reiniciando serviços globalmente..."
         
-        # Se usar CloudLinux/CageFS, sincroniza as alterações
+        # Mata processos FPM para garantir que não restem caches em memória
+        pkill -9 php-fpm >/dev/null 2>&1
+        
+        # Reinicia Apache e o Gerenciador de FPM do cPanel
+        /scripts/restartsrv_httpd --quiet
+        /scripts/restartsrv_apache_php_fpm --quiet
+        
+        # Sincronização CloudLinux (se houver)
         if command -v cagefsctl >/dev/null 2>&1; then
-            echo "Atualizando CageFS..."
+            echo "Sincronizando CageFS..."
             cagefsctl --force-update >/dev/null 2>&1
         fi
         
-        echo "Instalação concluída. Execute com --test para validar."
+        echo "Operação finalizada."
         ;;
     
     --test)
@@ -56,7 +57,6 @@ case "$1" in
         for phpbin in /usr/local/bin/ea-php[0-9][0-9]; do
             if [ -f "$phpbin" ]; then
                 VER_NAME=$(basename $phpbin)
-                # Verifica se o módulo está carregado e ativo
                 CHECK=$($phpbin -r "echo extension_loaded('Zend OPcache') && opcache_get_status()['opcache_enabled'] ? 'ATIVO' : 'INATIVO';" 2>/dev/null)
                 
                 if [ "$CHECK" == "ATIVO" ]; then
@@ -68,12 +68,10 @@ case "$1" in
             fi
         done
         ;;
-    
     *)
         echo "Uso: $0 {--install|--test}"
         exit 1
         ;;
 esac
-
 
 # bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/opcache.sh") --test
