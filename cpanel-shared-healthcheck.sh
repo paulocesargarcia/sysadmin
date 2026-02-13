@@ -49,6 +49,7 @@ DEPENDENCIAS=(
     "vmstat"    # pacote: sysstat
     "iostat"    # pacote: sysstat
     "whmapi1"   # pacote: cpanel
+    "iotop"     # pacote: sysstat
 )
 
 verificar_dependencias() {
@@ -90,7 +91,7 @@ Data | date
 Hostname | hostname
 Versão do kernel | uname -a
 Sistema operacional | cat /etc/os-release
-cPanel/WHM version | whmapi1 version
+cPanel/WHM version | whmapi1 version | grep -E "version|release"
 Imunify360 version | imunify360-agent version
 Apache version | httpd -V
 Versões PHP (EA4) | ls /opt/cpanel/ | grep ea-php
@@ -106,7 +107,7 @@ Top memória | ps aux --sort=-%mem | head
 Espaço em disco | df -h
 Inodes | df -ih
 IO e latência de disco | iostat -xz 1 3
-Top IO por processo | command -v iotop >/dev/null && iotop -b -n 3 || echo "iotop não instalado"
+Top IO por processo | command -v iotop >/dev/null && iotop -b -n 3 -o || echo "iotop não instalado"
 Dispositivos de bloco | lsblk
 Parâmetros kernel críticos | sysctl vm.swappiness fs.file-max net.core.somaxconn
 Limites do sistema | ulimit -a
@@ -124,11 +125,11 @@ Parâmetros MySQL/MariaDB | for f in /etc/my.cnf /etc/my.cnf.d/*.cnf; do echo ""
 Conexões de rede | ss -s
 Portas abertas | ss -lntup
 Total de contas cPanel | whmapi1 listaccts |grep user| wc -l
-Uso LVE (CloudLinux) | lveinfo 
+Uso LVE (CloudLinux) | command -v lveinfo >/dev/null && lveinfo || echo "CloudLinux não instalado (LVE não disponível)"
 Global PHP-FPM defaults | grep -E "pm_max_children|pm_max_requests|pm_process_idle_timeout" /var/cpanel/ApachePHPFPM/system_pool_defaults.yaml
 Apache httpd.conf | egrep 'ServerLimit|ThreadsPerChild|MaxRequestWorkers|MaxConnectionsPerChild|KeepAlive|MaxKeepAliveRequests|KeepAliveTimeout' /etc/apache2/conf/httpd.conf
 LimitNOFILE Apache | grep -R "LimitNOFILE" /etc/systemd/system /usr/lib/systemd/system/httpd.service
-LVE defaults | lvectl list-defaults
+LVE defaults | command -v lvectl >/dev/null && lvectl list || echo "CloudLinux não instalado (lvectl não disponível)"
 Config Imunify360 | imunify360-agent config show
 Erro Apache | tail -n 50 /usr/local/apache/logs/error_log
 Erro cPanel | tail -n 50 /usr/local/cpanel/logs/error_log
