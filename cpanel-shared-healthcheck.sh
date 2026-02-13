@@ -50,6 +50,7 @@ DEPENDENCIAS=(
     "iostat"    # pacote: sysstat
     "whmapi1"   # pacote: cpanel
     "iotop"     # pacote: sysstat
+    "/root/mysqltuner.pl"   # opcional: baixar quando for usar o healthcheck
 )
 
 verificar_dependencias() {
@@ -57,8 +58,10 @@ verificar_dependencias() {
     echo ">> Verificando dependências..."
     
     for cmd in "${DEPENDENCIAS[@]}"; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            faltantes+=("$cmd")
+        if [[ "$cmd" == /* ]]; then
+            test -f "$cmd" || faltantes+=("$cmd")
+        else
+            command -v "$cmd" >/dev/null 2>&1 || faltantes+=("$cmd")
         fi
     done
 
@@ -134,6 +137,7 @@ Config Imunify360 | imunify360-agent config show
 Erro Apache | tail -n 50 /usr/local/apache/logs/error_log
 Erro cPanel | tail -n 50 /usr/local/cpanel/logs/error_log
 Mensagens kernel | dmesg | tail -n 50
+MySQL Tuner | test -f /root/mysqltuner.pl && perl /root/mysqltuner.pl 2>&1 || echo "MySQLTuner não encontrado (/root/mysqltuner.pl)"
 EOF
 
 echo "Relatório de Tuning - $(date)" > "$RELATORIO"
