@@ -37,15 +37,65 @@ Use a coluna \"Valor atual\" com o valor lido do relatório ou dos arquivos envi
 
 Recomendações de tuning devem especificar: arquivo (caminho completo), parâmetro, valor novo, e justificativa baseada no relatório. Para software, informe nome e versão; para hardware, quantidade e tipo; para rede e segurança, detalhe conforme os dados disponíveis.
 "
+# ============================================================
+# VERIFICAÇÃO DE DEPENDÊNCIAS
+# ============================================================
+# Lista de softwares/comandos necessários para a execução do script.
+# Para adicionar novos requisitos, insira o nome do binário na lista abaixo.
+DEPENDENCIAS=(
+    "curl"
+    "elinks"
+    "mpstat"    # pacote: sysstat
+    "vmstat"    # pacote: sysstat
+    "iostat"    # pacote: sysstat
+    "whmapi1"   # pacote: cpanel
+)
+
+verificar_dependencias() {
+    local faltantes=()
+    echo ">> Verificando dependências..."
+    
+    for cmd in "${DEPENDENCIAS[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            faltantes+=("$cmd")
+        fi
+    done
+
+    if [ ${#faltantes[@]} -gt 0 ]; then
+        echo "----------------------------------------------------------------"
+        echo "ERRO: Foram detectadas dependências ausentes."
+        echo "O script não pode continuar sem os seguintes comandos:"
+        echo ""
+        for cmd in "${faltantes[@]}"; do
+            echo "  [X] $cmd"
+        done
+        echo ""
+        echo "Sugestão de instalação (AlmaLinux/CloudLinux):"
+        echo "  dnf -y install elinks sysstat"
+        echo "----------------------------------------------------------------"
+        exit 1
+    fi
+    
+    echo ">> Todas as dependências foram encontradas."
+}
+
+# Executa a verificação antes de prosseguir
+verificar_dependencias
 
 RELATORIO="healthcheck_$(hostname)_$(date +%Y%m%d_%H%M%S).txt"
 
 # read -d '' retorna 1 ao encontrar EOF (sem NUL); com set -e o script sairia aqui
 read -r -d '' COMANDOS <<'EOF' || true
+Data | date
 Hostname | hostname
 Versão do kernel | uname -a
 Sistema operacional | cat /etc/os-release
-Data | date
+cPanel/WHM version | whmapi1 version
+Imunify360 version | imunify360-agent version
+Apache version | httpd -V
+Versões PHP (EA4) | ls /opt/cpanel/ | grep ea-php
+Versão PHP CLI | php -v
+MySQL/MariaDB version | mysql --version || mariadb --version
 Load average do sistema | uptime
 CPU por core | mpstat -P ALL
 Uso geral de CPU/memória/IO | vmstat 1 5
@@ -60,38 +110,23 @@ Top IO por processo | command -v iotop >/dev/null && iotop -b -n 3 || echo "ioto
 Dispositivos de bloco | lsblk
 Parâmetros kernel críticos | sysctl vm.swappiness fs.file-max net.core.somaxconn
 Limites do sistema | ulimit -a
-Versão do Apache | httpd -v
+Tamanho medio de processo Apache | ps -ylC httpd --sort:rss | awk 'NR!=1 {print $8 / 1024}'
 MPM e módulos Apache | apachectl -M
-MPM Apache | httpd -V | grep -i mpm
 Processos Apache | ps aux | grep httpd | grep -v grep
-Versão PHP CLI | php -v
-Versões PHP instaladas | whmapi1 php_get_installed_versions
+Apachectl fullstatus | apachectl fullstatus
 PHP padrão | whmapi1 php_get_system_default_version
-Pools PHP-FPM | ls -d /opt/cpanel/ea-php*/root/etc/php-fpm.d/ | grep -R "pm.max_children\|pm.start_servers\|pm.min_spare_servers\|pm.max_spare_servers\|memory_limit" /opt/cpanel/ea-php*/root/etc/php-fpm.d/*.conf
-memory_limit PHP | grep -R "memory_limit" /opt/cpanel/ea-php*/root/etc/php.ini
-post_max_size PHP | grep -R "post_max_size" /opt/cpanel/ea-php*/root/etc/php.ini
-upload_max_filesize PHP | grep -R "upload_max_filesize" /opt/cpanel/ea-php*/root/etc/php.ini
-max_execution_time PHP | grep -R "max_execution_time" /opt/cpanel/ea-php*/root/etc/php.ini
-max_input_vars PHP | grep -R "max_input_vars" /opt/cpanel/ea-php*/root/etc/php.ini
-zlib.output_compression PHP | grep -R "zlib.output_compression" /opt/cpanel/ea-php*/root/etc/php.ini
-display_errors PHP | grep -R "display_errors" /opt/cpanel/ea-php*/root/etc/php.ini
-file_uploads PHP | grep -R "file_uploads" /opt/cpanel/ea-php*/root/etc/php.ini
-allow_url_fopen PHP | grep -R "allow_url_fopen" /opt/cpanel/ea-php*/root/etc/php.ini
-allow_url_include PHP | grep -R "allow_url_include" /opt/cpanel/ea-php*/root/etc/php.ini
+Pools PHP-FPM | for d in /opt/cpanel/ea-php*/root/etc/php-fpm.d; do v="${d#/opt/cpanel/}"; v="${v%%/*}"; echo ""; echo "[$v]"; grep -h -E "^(pm\.max_children|pm\.start_servers|pm\.min_spare_servers|pm\.max_spare_servers|memory_limit)[[:space:]]*=" "$d"/*.conf 2>/dev/null || true; done
+Parâmetros php.ini por versão | for f in /opt/cpanel/ea-php*/root/etc/php.ini; do v="${f#/opt/cpanel/}"; v="${v%%/*}"; echo ""; echo "[$v]"; grep -v "^[[:space:]]*;" "$f" 2>/dev/null | grep -E "^[[:space:]]*(memory_limit|post_max_size|upload_max_filesize|max_execution_time|max_input_vars|zlib\.output_compression|display_errors|file_uploads|allow_url_fopen|allow_url_include)[[:space:]]*=" || true; done
 Status MariaDB | systemctl status mariadb || systemctl status mysql
 Threads e queries | mysqladmin processlist
-Status resumido MySQL | mysqladmin status
-Config MySQL (essencial) | mysql -e "SHOW VARIABLES WHERE Variable_name IN ('innodb_buffer_pool_size','innodb_buffer_pool_instances','innodb_log_file_size','innodb_flush_log_at_trx_commit','max_connections','thread_cache_size');" 2>/dev/null || echo "MySQL indisponível"
-Status MySQL (essencial) | mysql -e "SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Threads_running','Max_used_connections','Innodb_buffer_pool_reads','Innodb_buffer_pool_read_requests');" 2>/dev/null || echo "MySQL indisponível"
-Parâmetros MySQL | egrep 'innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size' /etc/my.cnf /etc/my.cnf.d/*.cnf
+Status resumido MySQL | mysqladmin extended-status
+Parâmetros MySQL/MariaDB | for f in /etc/my.cnf /etc/my.cnf.d/*.cnf; do echo ""; echo "[$f]"; grep -v "^[[:space:]]*;" "$f" 2>/dev/null | grep -E "^[[:space:]]*(innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size)[[:space:]]*=" || true; done
 Conexões de rede | ss -s
 Portas abertas | ss -lntup
 Total de contas cPanel | whmapi1 listaccts |grep user| wc -l
-Load average | cat /proc/loadavg
 Uso LVE (CloudLinux) | lveinfo 
-Parâmetros MariaDB | grep -R "innodb_buffer_pool_size|max_connections|thread_cache_size|tmp_table_size|max_heap_table_size" /etc/my.cnf /etc/my.cnf.d/*.cnf
 Global PHP-FPM defaults | grep -E "pm_max_children|pm_max_requests|pm_process_idle_timeout" /var/cpanel/ApachePHPFPM/system_pool_defaults.yaml
-Apache workers | egrep 'MaxRequestWorkers|ServerLimit|ThreadsPerChild' /etc/apache2/conf/httpd.conf
+Apache httpd.conf | egrep 'ServerLimit|ThreadsPerChild|MaxRequestWorkers|MaxConnectionsPerChild|KeepAlive|MaxKeepAliveRequests|KeepAliveTimeout' /etc/apache2/conf/httpd.conf
 LimitNOFILE Apache | grep -R "LimitNOFILE" /etc/systemd/system /usr/lib/systemd/system/httpd.service
 LVE defaults | lvectl list-defaults
 Config Imunify360 | imunify360-agent config show
@@ -104,6 +139,7 @@ echo "Relatório de Tuning - $(date)" > "$RELATORIO"
 echo "===================================" >> "$RELATORIO"
 
 while IFS='|' read -r DESC CMD; do
+  echo -e "\n## $DESC" 
   echo -e "\n## $DESC" >> "$RELATORIO"
   echo "Comando: $CMD" >> "$RELATORIO"
   echo "-----------------------------------" >> "$RELATORIO"
