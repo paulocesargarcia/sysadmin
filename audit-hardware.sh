@@ -1,6 +1,6 @@
 cat << 'EOF' > /tmp/pve_diag.sh
 #!/bin/bash
-OUT="/tmp/pve_report_$(hostname).txt"
+OUT="/root/pve_report_$(hostname)_$(date +%Y%m%d_%H%M%S).txt"
 exec > >(tee "$OUT") 2>&1
 
 echo "=== PROXMOX SYSTEM AUDIT - $(date) ==="
