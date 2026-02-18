@@ -50,7 +50,7 @@ DEPENDENCIAS=(
     "iostat"    # pacote: sysstat
     "whmapi1"   # pacote: cpanel
     "iotop"     # pacote: sysstat
-    "/root/mysqltuner.pl"   # opcional: baixar quando for usar o healthcheck
+    "/root/mysqltuner.pl"   # opcional: baixar quando for usar o healthcheck curl -sO https://raw.githubusercontent.com/major/MySQLTuner-perl/master/mysqltuner.pl
 )
 
 verificar_dependencias() {
