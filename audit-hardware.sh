@@ -49,4 +49,4 @@ echo "=== DIAGNOSTIC FINISHED ==="
 echo "Relatório gerado em: $OUT"
 EOF
 
-# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/audit-hardware.sh")
+# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/audit-hardware.sh")
