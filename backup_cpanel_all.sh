@@ -74,7 +74,6 @@ done
 END_TIME=$(date +"%d/%m/%Y às %H:%M:%S")
 BACKUP_SIZE=$(du -sh "$BACKUP_DIR" 2>/dev/null | cut -f1)
 
-SUBJECT_FINAL="[BACKUP CONCLUÍDO] Servidor $SERVER_NAME - $DATE_FULL"
 BODY_FINAL="Backup dos usuários do cPanel foi concluído.
 
 === INFORMAÇÕES DO SERVIDOR ===
@@ -105,6 +104,12 @@ BODY_FINAL="$BODY_FINAL
 
 Este backup foi executado automaticamente.
 Data completa para referência: $DATE_FULL"
+
+if [ "$FAILED_BACKUPS" -gt 0 ]; then
+    SUBJECT_FINAL="[BACKUP CONCLUÍDO] ⛔ Servidor $SERVER_NAME - $DATE_FULL"
+else
+    SUBJECT_FINAL="[BACKUP CONCLUÍDO] Servidor $SERVER_NAME - $DATE_FULL"
+fi
 
 send_notification "$SUBJECT_FINAL" "$BODY_FINAL"
 
