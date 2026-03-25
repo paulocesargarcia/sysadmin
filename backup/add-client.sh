@@ -45,3 +45,10 @@ EOF
 else
     echo "Cliente ${HOST} já existe no config."
 fi
+
+/*
+    wget https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/backup/add-client.sh
+    wget https://raw.githubusercontent.com/paulocesargarcia/sysadmin/refs/heads/main/backup/backup-orchestrator.sh
+    mkdir -p /root/backup-central
+    chmod +x /root/backup-central/add-client.sh /root/backup-central/backup-orchestrator.sh
+*/
