@@ -407,13 +407,34 @@ f_logs_cpanel() {
 }
 
 f_imunify360() {
-	if command -v imunify360-agent >/dev/null 2>&1; then
-		f_section_header
-		echo "== imunify360-agent top =="
-		imunify360-agent top 2>&1 | head -40 || true
-	else
+	if ! command -v imunify360-agent >/dev/null 2>&1; then
 		echo "(Imunify360 não presente no PATH)"
+		return 0
 	fi
+	f_section_header
+	echo "== imunify360-agent version =="
+	{ imunify360-agent version 2>&1 | head -5; } || true
+	echo
+	echo "== imunify360-agent rstatus =="
+	{ imunify360-agent rstatus 2>&1 | head -30; } || true
+	echo
+	echo "== Incidentes última 1h (imunify360-agent get --period 1h) =="
+	{ imunify360-agent get --period 1h 2>&1 | head -30; } || true
+	echo
+	echo "== Top IPs na blacklist local (limit 30) =="
+	{ imunify360-agent ip-list local list --purpose drop --limit 30 2>&1 | head -40; } || true
+	echo
+	echo "== IPs em captcha (limit 20) =="
+	{ imunify360-agent ip-list local list --purpose captcha --limit 20 2>&1 | head -30; } || true
+	echo
+	echo "== Domínios infectados (malware) =="
+	{ imunify360-agent infected-domains 2>&1 | head -30; } || true
+	echo
+	echo "== Malware malicioso (últimos, limit 20) =="
+	{ imunify360-agent malware malicious list --limit 20 2>&1 | head -40; } || true
+	echo
+	echo "== Check modsec directives =="
+	{ imunify360-agent check modsec directives 2>&1 | head -20; } || true
 }
 
 # Resumo final: heurística curta; analista/LLM cruza com seções anteriores
