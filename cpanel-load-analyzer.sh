@@ -201,15 +201,15 @@ f_lve_block() {
 	echo "== LVE: faltas IO 1h =="
 	lveinfo --period=1h --by-fault io --display-username 2>&1 | head -50 || true
 	echo
-	echo "== lveinfo -l (tempo real) =="
-	lveinfo -l 2>&1 | head -40 || true
+	echo "== lveinfo (tempo real, top 30) =="
+	{ lveinfo --show-all --style admin --limit 30 2>&1 | head -60; } || true
 }
 
 f_lvectl() {
 	if command -v lvectl >/dev/null 2>&1; then
 		f_section_header
-		echo "== lvectl list =="
-		lvectl list 2>&1 | head -40
+		echo "== lvectl list (somente não-default; default=SPEED 100 PMEM 1024M) =="
+		{ lvectl list 2>&1 | awk 'NR<=1 || ($2!="100" || $3!="1024M")' | head -60; } || true
 	else
 		echo "(lvectl indisponível)"
 	fi
@@ -221,11 +221,15 @@ f_dbctl() {
 		echo "dbctl indisponível (MySQL Governor requer CloudLinux+Governor)."
 		return 0
 	fi
-	echo "== dbctl list --pretty =="
-	dbctl list --pretty 2>&1 | head -80 || true
+	echo "== dbctl list-restricted (throttlados agora) =="
+	{ dbctl list-restricted 2>&1 | head -40; } || true
 	echo
-	echo "== dbctl list-restricted =="
-	dbctl list-restricted 2>&1 | head -40 || true
+	echo "== dbctl list --pretty (somente contas com limite != default) =="
+	# Mostra cabeçalho + linhas cujo limite de CPU não é o padrão (400/380/350/300)
+	{ dbctl list --pretty 2>&1 | awk 'NR<=2 || ($0 !~ /400\/380\/350\/300/)' | head -40; } || true
+	echo
+	echo "== Total de contas dbctl =="
+	{ dbctl list --pretty 2>&1 | awk 'NR>2 {n++} END{print n" contas"}'; } || true
 }
 
 f_mysql() {
@@ -275,14 +279,27 @@ f_phpfpm_slow() {
 	shopt -s nullglob
 	local f
 	local found=0
-	for f in /opt/cpanel/ea-php*/root/var/log/php-fpm/*slow.log; do
+	local paths=(
+		/opt/cpanel/ea-php*/root/var/log/php-fpm/*slow*.log
+		/opt/cpanel/ea-php*/root/usr/var/log/php-fpm/*slow*.log
+		/var/cpanel/logs/phpfpm/*slow*.log
+		/var/cpanel/logs/phpfpm/*/slow*.log
+		/var/log/php-fpm/*slow*.log
+	)
+	for f in "${paths[@]}"; do
 		[[ -f "$f" ]] || continue
+		[[ -s "$f" ]] || continue
 		found=1
 		echo "--- $f ---"
 		tail -30 "$f" 2>&1
 	done
 	shopt -u nullglob
-	(( found )) || echo "(nenhum slow log encontrado em /opt/cpanel/ea-php*/root/var/log/php-fpm/*slow.log)"
+	if (( ! found )); then
+		echo "(nenhum slow log com conteúdo encontrado)"
+		echo "Paths verificados:"
+		printf '  %s\n' "${paths[@]}"
+		echo "Dica: pools PHP-FPM podem ter request_slowlog_timeout=0 (desabilitado)."
+	fi
 }
 
 f_io() {
@@ -306,9 +323,10 @@ f_ss_summary() { ss -s; }
 f_top_ips_80_443() {
 	f_section_header
 	echo "== Top IPs clientes (estabelecido; local :80 ou :443) =="
-	# $4=local, $5=peer; endereço IPv4 ou [IPv6]:port
-	ss -Htn state established 2>&1 | awk '($4 ~ /:80$/ || $4 ~ /:443$/) {
-		peer = $5
+	# ss -Htn state established => colunas: Recv-Q Send-Q LOCAL PEER
+	# $3 = local (servidor), $4 = peer (cliente). Filtrar local em 80/443.
+	{ ss -Htn state established 2>&1 | awk '($3 ~ /:80$/ || $3 ~ /:443$/) {
+		peer = $4
 		if (peer ~ /^\[/) {
 			# [ipv6]:port
 			if (match(peer, /^\[[^]]+\]/)) { ip = substr(peer, RSTART+1, RLENGTH-2) } else { ip = peer }
@@ -319,13 +337,13 @@ f_top_ips_80_443() {
 		}
 		if (ip != "") c[ip]++
 	}
-	END { for (a in c) print c[a], a }' 2>&1 | sort -rn | head -20
+	END { for (a in c) print c[a], a }' | sort -rn | head -20; } || true
 }
 
 f_ss_pids_to_users() {
 	f_section_header
 	echo "== Conexões com processo (amostra: portas 80/443) =="
-	ss -tpn state established 2>&1 | awk '/:80|:443/ {print}' | head -40
+	{ ss -tpn state established 2>&1 | awk '($3 ~ /:80$/ || $3 ~ /:443$/) {print}' | head -40; } || true
 }
 
 f_exim() {
@@ -334,12 +352,12 @@ f_exim() {
 		echo "exim não encontrado"
 		return 0
 	fi
-	echo "== exim -bpc =="
+	echo "== exim -bpc (total na fila) =="
 	exim -bpc 2>&1
 	echo
 	if command -v exiqsumm >/dev/null 2>&1; then
-		echo "== exiqsumm -c (top) =="
-		exiqsumm -c 2>&1 | head -25
+		echo "== exim -bp | exiqsumm -c (domínios na fila) =="
+		{ exim -bp 2>/dev/null | exiqsumm -c 2>&1 | head -25; } || true
 	fi
 }
 
