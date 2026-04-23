@@ -426,15 +426,6 @@ f_imunify360() {
 	echo
 	echo "== IPs em captcha (limit 20) =="
 	{ imunify360-agent ip-list local list --purpose captcha --limit 20 2>&1 | head -30; } || true
-	echo
-	echo "== Domínios infectados (malware) =="
-	{ imunify360-agent infected-domains 2>&1 | head -30; } || true
-	echo
-	echo "== Malware malicioso (últimos, limit 20) =="
-	{ imunify360-agent malware malicious list --limit 20 2>&1 | head -40; } || true
-	echo
-	echo "== Check modsec directives =="
-	{ imunify360-agent check modsec directives 2>&1 | head -20; } || true
 }
 
 # Resumo final: heurística curta; analista/LLM cruza com seções anteriores
