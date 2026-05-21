@@ -78,6 +78,39 @@ set_sshd_directive() {
     fi
 }
 
+set_conf_directive() {
+    local file="$1"
+    local key="$2"
+    local value="$3"
+
+    if grep -qE "^${key}[[:space:]]" "$file"; then
+        sed -i -E "s/^${key}[[:space:]].*/${key} ${value}/" "$file"
+    else
+        echo "${key} ${value}" >> "$file"
+    fi
+}
+
+derive_hostname_plus_one() {
+    local fqdn="$1"
+    local first_label="${fqdn%%.*}"
+    local rest="${fqdn#*.}"
+
+    if [[ "$first_label" =~ ([0-9]+)$ ]]; then
+        local num="${BASH_REMATCH[1]}"
+        local prefix="${first_label:0:${#first_label}-${#num}}"
+
+        [[ -n "$prefix" ]] || return 1
+
+        local width=${#num}
+        local new_num=$((10#$num + 1))
+        printf -v padded "%0*d" "$width" "$new_num"
+        echo "${prefix}${padded}.${rest}"
+        return 0
+    fi
+
+    return 1
+}
+
 append_limits_if_missing() {
     local file="/etc/security/limits.conf"
     local marker="# cpanel-config.sh - nofile limits"
@@ -387,6 +420,42 @@ EOF
     systemctl start disable-thp.service || true
 }
 
+configure_wwwacct_conf() {
+    local conf="/etc/wwwacct.conf"
+    local hostname_plus_one
+    local contact_email="paulo@setik.com.py,setik@setik.com.py"
+
+    if [[ ! -f "$conf" ]]; then
+        warn "Arquivo ${conf} não encontrado; pulando wwwacct.conf."
+        return 0
+    fi
+
+    if ! hostname_plus_one="$(derive_hostname_plus_one "$HOSTNAME_FQDN")"; then
+        warn "Prefixo do hostname não termina com número (${HOSTNAME_SHORT}); pulando wwwacct.conf."
+        return 0
+    fi
+
+    log "Configurando ${conf}"
+
+    backup_file "$conf"
+
+    set_conf_directive "$conf" "ADDR" "$MAIN_IP"
+    set_conf_directive "$conf" "HOST" "$HOSTNAME_FQDN"
+    set_conf_directive "$conf" "NS" "$HOSTNAME_FQDN"
+    set_conf_directive "$conf" "NS2" "$hostname_plus_one"
+    set_conf_directive "$conf" "CONTACTEMAIL" "$contact_email"
+
+    if [[ -x /scripts/updateuserdomains ]]; then
+        /scripts/updateuserdomains || warn "updateuserdomains retornou erro."
+    else
+        warn "/scripts/updateuserdomains não encontrado; cache de domínios não atualizado."
+    fi
+
+    echo
+    echo "===== wwwacct.conf ====="
+    grep -E "^(ADDR|HOST|NS |NS2 |CONTACTEMAIL)" "$conf"
+}
+
 configure_cpanel() {
     if [[ "$RUN_CPANEL_MAINTENANCE" != true ]]; then
         log "Manutenção cPanel desabilitada via parâmetro, pulando."
@@ -478,6 +547,7 @@ main() {
 
     configure_hostname
     configure_hosts
+    configure_wwwacct_conf
     update_system
     install_packages
     configure_chrony
@@ -497,4 +567,4 @@ main() {
 main "$@"
 
 
-# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-config.sh")
+# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/cpanel-config.sh") --hostname vps3023.exemplo.com
