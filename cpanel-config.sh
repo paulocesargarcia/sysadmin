@@ -334,27 +334,62 @@ configure_ssh() {
 }
 
 optimize_apache() {
-    local httpd_conf="/etc/httpd/conf/httpd.conf"
+    local includes_dir="/etc/apache2/conf.d/includes"
+    local include_file="${includes_dir}/pre_virtualhost_global.conf"
+    local marker_start="# BEGIN cpanel-config.sh - apache keepalive"
+    local marker_end="# END cpanel-config.sh - apache keepalive"
 
-    if [[ ! -f "$httpd_conf" ]]; then
-        warn "Apache não encontrado (${httpd_conf}), pulando otimização."
+    if [[ ! -d "$includes_dir" ]]; then
+        warn "Diretório ${includes_dir} não encontrado; pulando otimização Apache."
         return 0
     fi
 
-    log "Otimizando Apache KeepAlive"
+    log "Otimizando Apache KeepAlive via ${include_file}"
 
-    backup_file "$httpd_conf"
+    if [[ -f "$include_file" ]]; then
+        backup_file "$include_file"
 
-    sed -i 's/KeepAlive Off/KeepAlive On/' "$httpd_conf"
-
-    if ! grep -q '^KeepAliveTimeout' "$httpd_conf"; then
-        echo 'KeepAliveTimeout 15' >> "$httpd_conf"
+        if grep -qF "$marker_start" "$include_file"; then
+            awk -v start="$marker_start" -v end="$marker_end" '
+                $0 == start { skip=1; next }
+                $0 == end { skip=0; next }
+                !skip { print }
+            ' "$include_file" > "${include_file}.tmp"
+            mv "${include_file}.tmp" "$include_file"
+        fi
     fi
 
-    if systemctl is-active --quiet httpd 2>/dev/null; then
-        systemctl restart httpd
+    cat >> "$include_file" <<EOF
+
+${marker_start}
+KeepAlive On
+KeepAliveTimeout 2
+MaxKeepAliveRequests 100
+Timeout 60
+
+<IfModule reqtimeout_module>
+    RequestReadTimeout header=20-40,MinRate=500 body=20,MinRate=500
+</IfModule>
+
+${marker_end}
+EOF
+
+    if [[ -x /scripts/rebuildhttpdconf ]]; then
+        /scripts/rebuildhttpdconf || warn "rebuildhttpdconf retornou erro."
     else
-        warn "httpd não está ativo; configuração salva sem restart."
+        warn "/scripts/rebuildhttpdconf não encontrado; httpd.conf não reconstruído."
+    fi
+
+    if command -v apachectl >/dev/null 2>&1; then
+        apachectl configtest || warn "apachectl configtest retornou erro."
+    fi
+
+    if [[ -x /scripts/restartsrv_httpd ]]; then
+        /scripts/restartsrv_httpd || warn "restartsrv_httpd retornou erro."
+    elif systemctl is-active --quiet httpd 2>/dev/null; then
+        systemctl restart httpd || warn "systemctl restart httpd retornou erro."
+    else
+        warn "Apache não reiniciado (serviço não ativo ou comandos indisponíveis)."
     fi
 }
 
