@@ -61,13 +61,22 @@ do
         continue
     fi
 
+    # if [ "$MODE" = "--sync" ]; then
+    #     imapsync \
+    #         --host1 "$ORIGEM" --user1 "$email" --password1 "$senha" \
+    #         --host2 "$DESTINO" --user2 "$email" --password2 "$senha" \
+    #         --nofoldersizes --addheader --skipsize \
+    #         --syncinternaldates $SSL1 $SSL2
+    # fi
+
     if [ "$MODE" = "--sync" ]; then
         imapsync \
             --host1 "$ORIGEM" --user1 "$email" --password1 "$senha" \
             --host2 "$DESTINO" --user2 "$email" --password2 "$senha" \
-            --nofoldersizes --addheader --skipsize \
-            --syncinternaldates $SSL1 $SSL2
+             $SSL1 $SSL2 \
+             --justfolders
     fi
+
 done
 
 

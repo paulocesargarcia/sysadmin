@@ -67,3 +67,7 @@ echo ""
 echo "✅ La partición raíz (/) ha sido expandida exitosamente."
 echo "✅ Script ejecutado correctamente por TERRAFORM LARA."
 echo "------------------------------------------------------------"
+
+
+
+# bash <(curl -s "https://raw.githubusercontent.com/paulocesargarcia/sysadmin/main/expanddisk-max.sh")
